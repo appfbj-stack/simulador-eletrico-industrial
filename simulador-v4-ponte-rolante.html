@@ -1,0 +1,2648 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SimEletric v4.0 — Simulador Industrial</title>
+<style>
+/* ===== RESET & BASE ===== */
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0d1117;
+  --panel:#161b22;
+  --panel2:#21262d;
+  --border:#30363d;
+  --accent:#58a6ff;
+  --accent2:#1f6feb;
+  --green:#3fb950;
+  --red:#f85149;
+  --yellow:#d29922;
+  --orange:#db6d28;
+  --purple:#bc8cff;
+  --text:#c9d1d9;
+  --text2:#8b949e;
+  --wire:#58a6ff;
+  --wire-on:#3fb950;
+  --shadow:0 8px 32px rgba(0,0,0,.5);
+}
+body{
+  font-family:'Segoe UI',system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  height:100vh;
+  display:grid;
+  grid-template-rows:48px 1fr 28px;
+  grid-template-columns:240px 1fr 300px;
+  grid-template-areas:
+    "header header header"
+    "sidebar canvas rightpanel"
+    "footer footer footer";
+  overflow:hidden;
+  user-select:none;
+}
+
+/* ===== HEADER ===== */
+header{
+  grid-area:header;
+  background:var(--panel);
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  padding:0 12px;
+  gap:8px;
+  z-index:100;
+}
+.logo{
+  font-size:18px;
+  font-weight:700;
+  color:var(--accent);
+  letter-spacing:-.5px;
+  margin-right:8px;
+}
+.logo span{color:var(--text2);font-weight:400;font-size:13px;}
+.btn{
+  padding:5px 12px;
+  border-radius:6px;
+  border:1px solid var(--border);
+  background:var(--panel2);
+  color:var(--text);
+  cursor:pointer;
+  font-size:12px;
+  transition:all .15s;
+  white-space:nowrap;
+}
+.btn:hover{background:var(--accent2);border-color:var(--accent);color:#fff;}
+.btn.active{background:var(--accent2);border-color:var(--accent);color:#fff;}
+.btn.green{border-color:var(--green);}
+.btn.green:hover{background:#238636;}
+.btn.red{border-color:var(--red);}
+.btn.red:hover{background:#b91c1c;}
+.btn.yellow{border-color:var(--yellow);}
+.btn.yellow:hover{background:#92400e;}
+.sep{width:1px;height:28px;background:var(--border);margin:0 4px;}
+.spacer{flex:1;}
+#modeLabel{
+  font-size:11px;color:var(--text2);
+  padding:3px 8px;border-radius:4px;
+  background:var(--panel2);border:1px solid var(--border);
+}
+
+/* ===== SIDEBAR ===== */
+#sidebar{
+  grid-area:sidebar;
+  background:var(--panel);
+  border-right:1px solid var(--border);
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+}
+.sidebar-section{
+  padding:8px;
+  border-bottom:1px solid var(--border);
+}
+.sidebar-title{
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.8px;
+  color:var(--text2);
+  padding:4px 4px 6px;
+}
+.comp-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:4px;
+}
+.comp-item{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:6px 4px;
+  text-align:center;
+  cursor:grab;
+  transition:all .15s;
+  font-size:10px;
+  color:var(--text2);
+}
+.comp-item:hover{border-color:var(--accent);color:var(--text);background:#1c2128;}
+.comp-item:active{cursor:grabbing;}
+.comp-icon{font-size:18px;display:block;margin-bottom:2px;}
+.comp-name{display:block;line-height:1.2;}
+
+/* ===== CANVAS ===== */
+#canvasWrap{
+  grid-area:canvas;
+  position:relative;
+  overflow:hidden;
+  background:var(--bg);
+  background-image:
+    radial-gradient(circle,#30363d 1px,transparent 1px);
+  background-size:24px 24px;
+}
+#mainSvg{
+  width:100%;
+  height:100%;
+  cursor:default;
+}
+#canvasGroup{transform-origin:0 0;}
+.canvas-hint{
+  position:absolute;
+  bottom:12px;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:11px;
+  color:var(--text2);
+  background:var(--panel);
+  padding:4px 10px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  pointer-events:none;
+}
+
+/* ===== RIGHT PANEL ===== */
+#rightPanel{
+  grid-area:rightpanel;
+  background:var(--panel);
+  border-left:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+.tab-bar{
+  display:flex;
+  border-bottom:1px solid var(--border);
+  background:var(--bg);
+}
+.tab{
+  flex:1;
+  padding:8px 4px;
+  text-align:center;
+  font-size:11px;
+  cursor:pointer;
+  color:var(--text2);
+  border-bottom:2px solid transparent;
+  transition:all .15s;
+}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-content{
+  flex:1;
+  overflow-y:auto;
+  padding:10px;
+  display:none;
+}
+.tab-content.active{display:block;}
+
+/* ===== PROPS PANEL ===== */
+.prop-group{margin-bottom:12px;}
+.prop-label{font-size:11px;color:var(--text2);margin-bottom:4px;display:block;}
+.prop-input{
+  width:100%;
+  background:var(--panel2);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:5px 8px;
+  border-radius:5px;
+  font-size:12px;
+}
+.prop-input:focus{outline:none;border-color:var(--accent);}
+.prop-select{
+  width:100%;
+  background:var(--panel2);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:5px 8px;
+  border-radius:5px;
+  font-size:12px;
+}
+.prop-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.prop-actions .btn{flex:1;text-align:center;}
+.state-badge{
+  display:inline-block;
+  padding:2px 8px;
+  border-radius:10px;
+  font-size:11px;
+  font-weight:600;
+}
+.state-on{background:#238636;color:#fff;}
+.state-off{background:#30363d;color:var(--text2);}
+.state-trip{background:#b91c1c;color:#fff;}
+.no-sel{
+  text-align:center;
+  color:var(--text2);
+  font-size:12px;
+  padding:30px 10px;
+}
+
+/* ===== LIBRARY PANEL ===== */
+.lib-header{display:flex;gap:6px;margin-bottom:8px;}
+.lib-item{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:8px 10px;
+  margin-bottom:6px;
+  cursor:pointer;
+  transition:all .15s;
+}
+.lib-item:hover{border-color:var(--accent);}
+.lib-item-name{font-size:12px;font-weight:600;margin-bottom:2px;}
+.lib-item-desc{font-size:11px;color:var(--text2);}
+.lib-item-meta{display:flex;justify-content:space-between;margin-top:4px;}
+.lib-cat{font-size:10px;padding:1px 6px;border-radius:8px;background:var(--accent2);color:#fff;}
+.lib-actions{display:flex;gap:4px;margin-top:4px;}
+.lib-actions .btn{padding:3px 8px;font-size:10px;}
+
+/* ===== EXERCISES PANEL ===== */
+.ex-item{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:10px;
+  margin-bottom:8px;
+  transition:all .15s;
+}
+.ex-item.locked{opacity:.5;}
+.ex-item.active-ex{border-color:var(--accent);}
+.ex-item.done{border-color:var(--green);}
+.ex-header{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+.ex-num{
+  width:22px;height:22px;
+  border-radius:50%;
+  background:var(--panel);
+  border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;flex-shrink:0;
+}
+.ex-title{font-size:12px;font-weight:600;}
+.ex-badges{display:flex;gap:4px;margin-bottom:4px;}
+.badge{font-size:10px;padding:1px 6px;border-radius:8px;}
+.badge-basic{background:#1a4428;color:var(--green);}
+.badge-inter{background:#533700;color:var(--yellow);}
+.badge-adv{background:#5c1e1e;color:var(--red);}
+.badge-prof{background:#2d1b69;color:var(--purple);}
+.ex-desc{font-size:11px;color:var(--text2);margin-bottom:6px;line-height:1.4;}
+.ex-steps{margin:6px 0;}
+.ex-step{
+  display:flex;gap:6px;
+  font-size:11px;
+  padding:4px 0;
+  border-bottom:1px solid var(--border);
+  align-items:flex-start;
+}
+.step-icon{flex-shrink:0;font-size:14px;}
+.step-text{color:var(--text2);}
+.step-done .step-text{color:var(--green);}
+.ex-progress{
+  height:4px;
+  background:var(--border);
+  border-radius:2px;
+  margin:6px 0;
+  overflow:hidden;
+}
+.ex-progress-bar{height:100%;background:var(--accent);border-radius:2px;transition:width .3s;}
+.ex-footer{display:flex;justify-content:space-between;align-items:center;margin-top:6px;}
+.pts-badge{font-size:11px;color:var(--yellow);}
+.score-total{
+  text-align:center;
+  padding:12px;
+  background:var(--panel2);
+  border-radius:6px;
+  border:1px solid var(--border);
+  margin-bottom:10px;
+}
+.score-num{font-size:28px;font-weight:700;color:var(--accent);}
+.score-label{font-size:11px;color:var(--text2);}
+
+/* ===== VFD PANEL ===== */
+.vfd-brand-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;}
+.vfd-brand{
+  padding:4px 8px;
+  border-radius:5px;
+  border:1px solid var(--border);
+  background:var(--panel2);
+  font-size:11px;
+  cursor:pointer;
+  transition:all .15s;
+}
+.vfd-brand.active{border-color:var(--accent);background:var(--accent2);color:#fff;}
+.vfd-section{margin-bottom:10px;}
+.vfd-section-title{
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.8px;
+  color:var(--accent);
+  padding:4px 0;
+  border-bottom:1px solid var(--border);
+  margin-bottom:6px;
+}
+.param-row{
+  display:grid;
+  grid-template-columns:70px 1fr 55px;
+  gap:4px;
+  align-items:center;
+  margin-bottom:5px;
+}
+.param-code{font-size:10px;color:var(--yellow);font-weight:600;}
+.param-name{font-size:10px;color:var(--text2);}
+.param-input{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:3px 5px;
+  border-radius:4px;
+  font-size:10px;
+  width:100%;
+}
+.param-input:focus{outline:none;border-color:var(--accent);}
+.param-unit{font-size:10px;color:var(--text2);text-align:right;}
+
+/* ===== LOG PANEL ===== */
+#footer{
+  grid-area:footer;
+  background:var(--panel);
+  border-top:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  padding:0 12px;
+  gap:8px;
+  overflow:hidden;
+}
+#logScroll{
+  flex:1;
+  overflow-x:auto;
+  white-space:nowrap;
+  font-size:11px;
+  color:var(--text2);
+}
+.log-entry{display:inline;margin-right:16px;}
+.log-entry.on{color:var(--green);}
+.log-entry.off{color:var(--red);}
+.log-entry.info{color:var(--accent);}
+.log-entry.warn{color:var(--yellow);}
+
+/* ===== SVG COMPONENTS ===== */
+.comp-group{cursor:pointer;}
+.comp-group:hover .comp-body{filter:brightness(1.2);}
+.comp-body{transition:filter .1s;}
+.terminal{cursor:crosshair;}
+.terminal-dot{
+  fill:var(--panel2);
+  stroke:#8b949e;
+  stroke-width:1.5;
+  transition:fill .2s,stroke .2s;
+}
+.terminal-dot.energized{fill:var(--green);stroke:var(--green);}
+.terminal-dot.connecting{fill:var(--accent);stroke:var(--accent);}
+.wire-path{
+  fill:none;
+  stroke:var(--wire);
+  stroke-width:2;
+  stroke-linecap:round;
+  pointer-events:stroke;
+  cursor:pointer;
+}
+.wire-path.energized{
+  stroke:var(--wire-on);
+  stroke-dasharray:8 4;
+  animation:flowAnim .6s linear infinite;
+}
+.wire-path:hover{stroke-width:3.5;}
+@keyframes flowAnim{
+  to{stroke-dashoffset:-12;}
+}
+.comp-label{
+  font-size:9px;
+  fill:var(--text2);
+  pointer-events:none;
+  font-family:'Segoe UI',sans-serif;
+}
+.comp-tag{
+  font-size:10px;
+  fill:var(--accent);
+  font-weight:600;
+  pointer-events:none;
+  font-family:'Segoe UI',sans-serif;
+}
+.comp-state{
+  font-size:9px;
+  fill:var(--green);
+  pointer-events:none;
+  font-family:'Segoe UI',sans-serif;
+}
+.comp-state.off{fill:var(--text2);}
+.comp-state.trip{fill:var(--red);}
+
+/* ===== MODALS ===== */
+.modal-overlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.7);
+  display:flex;align-items:center;justify-content:center;
+  z-index:1000;
+  display:none;
+}
+.modal-overlay.show{display:flex;}
+.modal{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:20px;
+  min-width:340px;
+  max-width:500px;
+  max-height:80vh;
+  overflow-y:auto;
+  box-shadow:var(--shadow);
+}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:14px;color:var(--text);}
+.modal-row{margin-bottom:10px;}
+.modal-label{font-size:12px;color:var(--text2);margin-bottom:4px;display:block;}
+.modal-input{
+  width:100%;
+  background:var(--panel2);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:7px 10px;
+  border-radius:6px;
+  font-size:13px;
+}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+
+/* ===== SCROLLBARS ===== */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--text2);}
+
+/* ===== CRANE VISUALIZER ===== */
+#craneViz{
+  position:absolute;
+  bottom:8px;
+  right:8px;
+  width:260px;
+  height:130px;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:8px;
+  overflow:hidden;
+  pointer-events:none;
+  opacity:.9;
+}
+#craneViz.hidden{display:none;}
+#craneSvg{width:100%;height:100%;}
+.crane-label{font-size:9px;fill:var(--text2);font-family:'Segoe UI',sans-serif;}
+.crane-status{font-size:10px;font-family:'Segoe UI',sans-serif;font-weight:600;}
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header>
+  <div class="logo">⚡ SimEletric <span>v4.0</span></div>
+  <div class="sep"></div>
+  <button class="btn active" id="btnMove" onclick="setMode('move')" title="[M]">✋ Mover</button>
+  <button class="btn" id="btnWire" onclick="setMode('wire')" title="[W]">〰 Fio</button>
+  <button class="btn red" id="btnDel" onclick="setMode('delete')" title="[Del]">✂ Del</button>
+  <div class="sep"></div>
+  <button class="btn green" onclick="runSimulation()">▶ Simular</button>
+  <button class="btn" onclick="resetAll()">↺ Reset</button>
+  <button class="btn" onclick="exportJSON()">⬇ JSON</button>
+  <button class="btn" onclick="showDbStats()">🗄 DB</button>
+  <div class="sep"></div>
+  <button class="btn yellow" onclick="openSaveModal()">💾 Salvar Lib</button>
+  <div class="spacer"></div>
+  <span id="modeLabel">MODO: MOVER</span>
+</header>
+
+<!-- ===== SIDEBAR ===== -->
+<aside id="sidebar">
+  <!-- Proteção -->
+  <div class="sidebar-section">
+    <div class="sidebar-title">Proteção / Chaveamento</div>
+    <div class="comp-grid">
+      <div class="comp-item" draggable="true" data-type="qg">
+        <span class="comp-icon">🔌</span><span class="comp-name">QG<br>Disjuntor 3F</span>
+      </div>
+      <div class="comp-item" draggable="true" data-type="disj">
+        <span class="comp-icon">⚡</span><span class="comp-name">Disjuntor</span>
+      </div>
+      <div class="comp-item" draggable="true" data-type="rele">
+        <span class="comp-icon">🌡️</span><span class="comp-name">Relé<br>Térmico</span>
+      </div>
+    </div>
+  </div>
+  <!-- Contatores -->
+  <div class="sidebar-section">
+    <div class="sidebar-title">Contatores</div>
+    <div class="comp-grid">
+      <div class="comp-item" draggable="true" data-type="contator">
+        <span class="comp-icon">🔧</span><span class="comp-name">Contator KM</span>
+      </div>
+      <div class="comp-item" draggable="true" data-type="contNA">
+        <span class="comp-icon">○</span><span class="comp-name">Contato NA</span>
+      </div>
+      <div class="comp-item" draggable="true" data-type="contNF">
+        <span class="comp-icon">●</span><span class="comp-name">Contato NF</span>
+      </div>
+    </div>
+  </div>
+  <!-- Comando -->
+  <div class="sidebar-section">
+    <div class="sidebar-title">Comando</div>
+    <div class="comp-grid">
+      <div class="comp-item" draggable="true" data-type="botNA">
+        <span class="comp-icon">🟢</span><span class="comp-name">Botoeira NA<br>Liga</span>
+      </div>
+      <div class="comp-item" draggable="true" data-type="botNF">
+        <span class="comp-icon">🔴</span><span class="comp-name">Botoeira NF<br>Desliga</span>
+      </div>
+      <div class="comp-item" draggable="true" data-type="fcNA">
+        <span class="comp-icon">🎯</span><span class="comp-name">Fim Curso NA</span>
+      </div>
+      <div class="comp-item" draggable="true" data-type="fcNF">
+        <span class="comp-icon">🚧</span><span class="comp-name">Fim Curso NF</span>
+      </div>
+      <div class="comp-item" draggable="true" data-type="timer">
+        <span class="comp-icon">⏱️</span><span class="comp-name">Temporizador</span>
+      </div>
+      <div class="comp-item" draggable="true" data-type="emg">
+        <span class="comp-icon">🛑</span><span class="comp-name">Emg<br>Cogumelo</span>
+      </div>
+    </div>
+  </div>
+  <!-- Sinalização -->
+  <div class="sidebar-section">
+    <div class="sidebar-title">Sinalização</div>
+    <div class="comp-grid">
+      <div class="comp-item" draggable="true" data-type="lampVerde">
+        <span class="comp-icon">💚</span><span class="comp-name">Sinalizador<br>Verde</span>
+      </div>
+      <div class="comp-item" draggable="true" data-type="lampVerm">
+        <span class="comp-icon">❤️</span><span class="comp-name">Sinalizador<br>Vermelho</span>
+      </div>
+      <div class="comp-item" draggable="true" data-type="lampAmar">
+        <span class="comp-icon">💛</span><span class="comp-name">Sinalizador<br>Amarelo</span>
+      </div>
+      <div class="comp-item" draggable="true" data-type="buzzer">
+        <span class="comp-icon">🔔</span><span class="comp-name">Buzzer</span>
+      </div>
+    </div>
+  </div>
+  <!-- Motores -->
+  <div class="sidebar-section">
+    <div class="sidebar-title">Motores</div>
+    <div class="comp-grid">
+      <div class="comp-item" draggable="true" data-type="motor">
+        <span class="comp-icon">⚙️</span><span class="comp-name">Motor 3F</span>
+      </div>
+      <div class="comp-item" draggable="true" data-type="motor2v">
+        <span class="comp-icon">⚙️</span><span class="comp-name">Motor 2V<br>Dahlander</span>
+      </div>
+    </div>
+  </div>
+  <!-- Inversores -->
+  <div class="sidebar-section">
+    <div class="sidebar-title">Inversores VFD</div>
+    <div class="comp-grid">
+      <div class="comp-item" draggable="true" data-type="vfd">
+        <span class="comp-icon">🔁</span><span class="comp-name">Inversor<br>VFD</span>
+      </div>
+    </div>
+  </div>
+  <!-- Pórtico -->
+  <div class="sidebar-section">
+    <div class="sidebar-title">Pórtico / Talha</div>
+    <div class="comp-grid">
+      <div class="comp-item" draggable="true" data-type="anem">
+        <span class="comp-icon">💨</span><span class="comp-name">Anemômetro<br>AN</span>
+      </div>
+      <div class="comp-item" draggable="true" data-type="trava">
+        <span class="comp-icon">🔒</span><span class="comp-name">Trava<br>Mecânica</span>
+      </div>
+    </div>
+  </div>
+  <!-- Fonte -->
+  <div class="sidebar-section">
+    <div class="sidebar-title">Fonte</div>
+    <div class="comp-grid">
+      <div class="comp-item" draggable="true" data-type="fase">
+        <span class="comp-icon">〽️</span><span class="comp-name">Fase L</span>
+      </div>
+      <div class="comp-item" draggable="true" data-type="neutro">
+        <span class="comp-icon">⏚</span><span class="comp-name">Neutro N</span>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ===== CANVAS ===== -->
+<main id="canvasWrap">
+  <svg id="mainSvg">
+    <defs>
+      <marker id="arrowEnd" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L6,3 z" fill="var(--wire)"/>
+      </marker>
+      <filter id="glow">
+        <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+        <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <g id="canvasGroup">
+      <g id="wiresLayer"></g>
+      <g id="compsLayer"></g>
+    </g>
+  </svg>
+  <div class="canvas-hint">Scroll = zoom • Middle click = pan • M/W/Del = modos</div>
+
+  <!-- Crane Visualizer -->
+  <div id="craneViz">
+    <svg id="craneSvg" viewBox="0 0 260 130">
+      <!-- Background -->
+      <rect width="260" height="130" fill="#0d1117" rx="8"/>
+      <!-- Rail -->
+      <line x1="10" y1="30" x2="250" y2="30" stroke="#30363d" stroke-width="4"/>
+      <line x1="10" y1="28" x2="250" y2="28" stroke="#58a6ff" stroke-width="1" opacity=".4"/>
+      <!-- Beam -->
+      <rect x="20" y="26" width="220" height="8" fill="#21262d" stroke="#30363d" stroke-width="1"/>
+      <!-- Trolley (moved by JS) -->
+      <g id="craneTrolley" transform="translate(120,20)">
+        <rect x="-20" y="0" width="40" height="16" fill="#1f6feb" stroke="#58a6ff" stroke-width="1" rx="3"/>
+        <text x="0" y="12" text-anchor="middle" class="crane-label" fill="#c9d1d9" font-size="8">TROLE</text>
+        <!-- Rope -->
+        <line id="craneRope" x1="0" y1="16" x2="0" y2="60" stroke="#8b949e" stroke-width="2"/>
+        <!-- Hook -->
+        <g id="craneHook" transform="translate(0,60)">
+          <rect x="-12" y="0" width="24" height="14" fill="#21262d" stroke="#30363d" stroke-width="1" rx="2"/>
+          <path d="M-4,14 Q-4,22 0,22 Q4,22 4,14" fill="none" stroke="#8b949e" stroke-width="2"/>
+          <text x="0" y="10" text-anchor="middle" class="crane-label" fill="#8b949e" font-size="8">⚓</text>
+        </g>
+      </g>
+      <!-- Status labels -->
+      <text x="10" y="110" class="crane-status" fill="#8b949e" id="craneStatusT">TRANSLAÇÃO: —</text>
+      <text x="10" y="125" class="crane-status" fill="#8b949e" id="craneStatusE">ELEVAÇÃO: —</text>
+      <text x="180" y="110" class="crane-status" fill="#3fb950" id="craneStatusS" font-size="9">●SEGURANÇA</text>
+    </svg>
+  </div>
+</main>
+
+<!-- ===== RIGHT PANEL ===== -->
+<aside id="rightPanel">
+  <div class="tab-bar">
+    <div class="tab active" onclick="showTab('props')">PROPS</div>
+    <div class="tab" onclick="showTab('lib')">📚 LIB</div>
+    <div class="tab" onclick="showTab('ex')">🎓 EX</div>
+    <div class="tab" onclick="showTab('vfd')">VFD</div>
+  </div>
+
+  <!-- PROPS TAB -->
+  <div class="tab-content active" id="tab-props">
+    <div id="propsContent">
+      <div class="no-sel">
+        <div style="font-size:32px;margin-bottom:8px;">🖱️</div>
+        Selecione um componente<br>para ver e editar propriedades
+      </div>
+    </div>
+  </div>
+
+  <!-- LIBRARY TAB -->
+  <div class="tab-content" id="tab-lib">
+    <div class="lib-header">
+      <button class="btn" style="flex:1" onclick="loadLibrary()">↺ Atualizar</button>
+      <button class="btn" onclick="dbExport()">⬇ Export</button>
+      <label class="btn" style="cursor:pointer">
+        ⬆ Import<input type="file" accept=".json" style="display:none" onchange="dbImport(this)">
+      </label>
+    </div>
+    <div style="margin-bottom:8px;">
+      <select class="prop-select" id="libFilter" onchange="loadLibrary()">
+        <option value="">Todas as categorias</option>
+        <option value="Ponte Rolante">Ponte Rolante</option>
+        <option value="Pórtico">Pórtico</option>
+        <option value="Talha">Talha</option>
+        <option value="Partidas">Partidas</option>
+        <option value="Inversores VFD">Inversores VFD</option>
+        <option value="Fundamentos">Fundamentos</option>
+      </select>
+    </div>
+    <div id="libList"></div>
+  </div>
+
+  <!-- EXERCISES TAB -->
+  <div class="tab-content" id="tab-ex">
+    <div class="score-total">
+      <div class="score-num" id="totalScore">0</div>
+      <div class="score-label">pontos conquistados</div>
+      <div style="margin-top:6px;">
+        <div class="ex-progress"><div class="ex-progress-bar" id="totalBar" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div id="exList"></div>
+  </div>
+
+  <!-- VFD TAB -->
+  <div class="tab-content" id="tab-vfd">
+    <div id="vfdContent">
+      <div class="no-sel">
+        <div style="font-size:32px;margin-bottom:8px;">🔁</div>
+        Selecione um Inversor VFD<br>no canvas para configurar
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ===== FOOTER LOG ===== -->
+<footer id="footer">
+  <span style="font-size:11px;color:var(--text2);flex-shrink:0;">LOG:</span>
+  <div id="logScroll"><span class="log-entry info">Sistema iniciado — SimEletric v4.0</span></div>
+</footer>
+
+<!-- ===== MODAL SALVAR ===== -->
+<div class="modal-overlay" id="saveModal">
+  <div class="modal">
+    <div class="modal-title">💾 Salvar na Biblioteca</div>
+    <div class="modal-row">
+      <label class="modal-label">Nome do circuito</label>
+      <input class="modal-input" id="saveName" placeholder="Ex: Partida Direta KM1">
+    </div>
+    <div class="modal-row">
+      <label class="modal-label">Categoria</label>
+      <select class="modal-input" id="saveCat">
+        <option>Ponte Rolante</option><option>Pórtico</option><option>Talha</option>
+        <option>Partidas</option><option>Inversores VFD</option><option>Fundamentos</option><option>Outros</option>
+      </select>
+    </div>
+    <div class="modal-row">
+      <label class="modal-label">Descrição</label>
+      <input class="modal-input" id="saveDesc" placeholder="Breve descrição do circuito">
+    </div>
+    <div class="modal-footer">
+      <button class="btn red" onclick="closeModal('saveModal')">Cancelar</button>
+      <button class="btn green" onclick="saveToLibrary()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL DB STATS ===== -->
+<div class="modal-overlay" id="dbModal">
+  <div class="modal">
+    <div class="modal-title">🗄 Banco de Dados — SimEletricDB</div>
+    <div id="dbStatsContent" style="font-size:13px;line-height:2;color:var(--text2);"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('dbModal')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// GLOBALS
+// ============================================================
+let mode = 'move';
+let svgEl = document.getElementById('mainSvg');
+let canvasGroup = document.getElementById('canvasGroup');
+let wiresLayer = document.getElementById('wiresLayer');
+let compsLayer = document.getElementById('compsLayer');
+
+let components = [];  // {id, type, x, y, tag, state, params, terminals:[{id,cx,cy,energized}]}
+let wires = [];       // {id, fromComp, fromTerm, toComp, toTerm, energized}
+let selectedComp = null;
+let nextId = 1;
+
+// Pan/zoom state
+let viewX=0, viewY=0, viewScale=1;
+let isPanning=false, panStart={x:0,y:0};
+
+// Wire drawing state
+let wiringFrom = null;  // {compId, termId, x, y}
+let tempWireLine = null;
+
+// IndexedDB
+let db = null;
+const DB_NAME = 'SimEletricDB';
+const DB_VER = 1;
+
+// ============================================================
+// MODE
+// ============================================================
+function setMode(m){
+  mode = m;
+  document.getElementById('btnMove').classList.toggle('active', m==='move');
+  document.getElementById('btnWire').classList.toggle('active', m==='wire');
+  document.getElementById('btnDel').classList.toggle('active', m==='delete');
+  document.getElementById('modeLabel').textContent = 'MODO: '+m.toUpperCase();
+  svgEl.style.cursor = m==='wire'?'crosshair': m==='delete'?'no-drop':'default';
+  if(m!=='wire') cancelWiring();
+}
+
+document.addEventListener('keydown',e=>{
+  const tag = e.target.tagName.toLowerCase();
+  if(tag==='input'||tag==='select'||tag==='textarea') return;
+  if(e.key==='m'||e.key==='M') setMode('move');
+  if(e.key==='w'||e.key==='W') setMode('wire');
+  if(e.key==='Delete') setMode('delete');
+  if(e.key==='Escape'){ setMode('move'); cancelWiring(); }
+});
+
+// ============================================================
+// PAN / ZOOM
+// ============================================================
+svgEl.addEventListener('wheel', e=>{
+  e.preventDefault();
+  const rect = svgEl.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const delta = e.deltaY > 0 ? 0.9 : 1.1;
+  viewX = mx - delta*(mx - viewX);
+  viewY = my - delta*(my - viewY);
+  viewScale *= delta;
+  viewScale = Math.min(Math.max(viewScale, 0.2), 4);
+  applyTransform();
+},{passive:false});
+
+svgEl.addEventListener('mousedown', e=>{
+  if(e.button===1){ isPanning=true; panStart={x:e.clientX-viewX, y:e.clientY-viewY}; e.preventDefault(); }
+});
+window.addEventListener('mousemove', e=>{
+  if(isPanning){ viewX=e.clientX-panStart.x; viewY=e.clientY-panStart.y; applyTransform(); }
+  if(wiringFrom && tempWireLine){
+    const pt = svgPoint(e.clientX, e.clientY);
+    const dx = pt.x - wiringFrom.x, dy = pt.y - wiringFrom.y;
+    tempWireLine.setAttribute('d',`M${wiringFrom.x},${wiringFrom.y} C${wiringFrom.x+dx*.5},${wiringFrom.y} ${pt.x-dx*.5},${pt.y} ${pt.x},${pt.y}`);
+  }
+});
+window.addEventListener('mouseup', e=>{ if(e.button===1) isPanning=false; });
+
+function applyTransform(){
+  canvasGroup.setAttribute('transform',`translate(${viewX},${viewY}) scale(${viewScale})`);
+}
+function svgPoint(cx, cy){
+  const rect = svgEl.getBoundingClientRect();
+  return { x:(cx-rect.left-viewX)/viewScale, y:(cy-rect.top-viewY)/viewScale };
+}
+
+// ============================================================
+// DRAG FROM SIDEBAR
+// ============================================================
+document.querySelectorAll('.comp-item[draggable]').forEach(el=>{
+  el.addEventListener('dragstart',e=>{
+    e.dataTransfer.setData('compType', el.dataset.type);
+  });
+});
+document.getElementById('canvasWrap').addEventListener('dragover',e=>e.preventDefault());
+document.getElementById('canvasWrap').addEventListener('drop',e=>{
+  e.preventDefault();
+  const type = e.dataTransfer.getData('compType');
+  if(!type) return;
+  const pt = svgPoint(e.clientX, e.clientY);
+  addComponent(type, pt.x, pt.y);
+});
+
+// ============================================================
+// TABS
+// ============================================================
+function showTab(name){
+  document.querySelectorAll('.tab').forEach((t,i)=>{
+    const names=['props','lib','ex','vfd'];
+    t.classList.toggle('active', names[i]===name);
+  });
+  document.querySelectorAll('.tab-content').forEach(tc=>{
+    tc.classList.toggle('active', tc.id==='tab-'+name);
+  });
+}
+
+// ============================================================
+// LOG
+// ============================================================
+function addLog(msg, type='info'){
+  const t = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const s = document.getElementById('logScroll');
+  const span = document.createElement('span');
+  span.className = 'log-entry '+type;
+  span.textContent = `[${t}] ${msg}`;
+  s.appendChild(span);
+  s.scrollLeft = s.scrollWidth;
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function openSaveModal(){ document.getElementById('saveModal').classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+
+// ============================================================
+// INDEXEDDB
+// ============================================================
+function initDB(){
+  return new Promise((res,rej)=>{
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e=>{
+      const d = e.target.result;
+      if(!d.objectStoreNames.contains('library')){
+        const ls = d.createObjectStore('library',{keyPath:'id',autoIncrement:true});
+        ls.createIndex('name','name',{unique:false});
+        ls.createIndex('cat','cat',{unique:false});
+        ls.createIndex('date','date',{unique:false});
+      }
+      if(!d.objectStoreNames.contains('circuits')){
+        d.createObjectStore('circuits',{keyPath:'id',autoIncrement:true});
+      }
+      if(!d.objectStoreNames.contains('settings')){
+        d.createObjectStore('settings',{keyPath:'key'});
+      }
+    };
+    req.onsuccess = e=>{ db=e.target.result; res(db); };
+    req.onerror = ()=>rej(req.error);
+  });
+}
+
+function dbPut(store, data){
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(store,'readwrite');
+    const req = tx.objectStore(store).put(data);
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+function dbGetAll(store){
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(store,'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+function dbDeleteRecord(store, id){
+  return new Promise((res,rej)=>{
+    const tx = db.transaction(store,'readwrite');
+    const req = tx.objectStore(store).delete(id);
+    req.onsuccess=()=>res();
+    req.onerror=()=>rej(req.error);
+  });
+}
+
+async function saveToLibrary(){
+  const name = document.getElementById('saveName').value.trim();
+  const cat  = document.getElementById('saveCat').value;
+  const desc = document.getElementById('saveDesc').value.trim();
+  if(!name){ alert('Digite um nome!'); return; }
+  const data = {
+    name, cat, desc,
+    date: new Date().toISOString(),
+    circuit: { components: components.map(c=>({...c})), wires: wires.map(w=>({...w})) }
+  };
+  try{
+    await dbPut('library', data);
+    addLog(`Circuito "${name}" salvo na biblioteca`, 'on');
+    closeModal('saveModal');
+    loadLibrary();
+  } catch(e){
+    // fallback localStorage
+    const arr = JSON.parse(localStorage.getItem('simLib')||'[]');
+    arr.push({...data, id: Date.now()});
+    localStorage.setItem('simLib', JSON.stringify(arr));
+    addLog(`Circuito "${name}" salvo (localStorage)`, 'warn');
+    closeModal('saveModal');
+    loadLibrary();
+  }
+}
+
+async function loadLibrary(){
+  const filter = document.getElementById('libFilter').value;
+  let items = [];
+  try{
+    items = await dbGetAll('library');
+  } catch(e){
+    items = JSON.parse(localStorage.getItem('simLib')||'[]');
+  }
+  if(filter) items = items.filter(i=>i.cat===filter);
+  // Also include built-in circuits
+  const builtIn = getBuiltInCircuits();
+  const allItems = [...builtIn.map(b=>({...b,builtin:true})), ...items];
+  const container = document.getElementById('libList');
+  container.innerHTML = '';
+  if(!allItems.length){ container.innerHTML='<div class="no-sel" style="padding:20px 10px">Biblioteca vazia</div>'; return; }
+  allItems.forEach(item=>{
+    const div = document.createElement('div');
+    div.className = 'lib-item';
+    div.innerHTML = `
+      <div class="lib-item-name">${item.name}</div>
+      <div class="lib-item-desc">${item.desc||''}</div>
+      <div class="lib-item-meta">
+        <span class="lib-cat">${item.cat||''}</span>
+        <span style="font-size:10px;color:var(--text2)">${item.builtin?'Pré-instalado':(item.date?item.date.substring(0,10):'')}</span>
+      </div>
+      <div class="lib-actions">
+        <button class="btn green" onclick="loadCircuit(${JSON.stringify(item.name).replace(/"/g,'&quot;')},${item.builtin||false})">▶ Carregar</button>
+        ${!item.builtin?`<button class="btn red" onclick="deleteLibItem(${item.id})">🗑 Del</button>`:''}
+      </div>`;
+    container.appendChild(div);
+  });
+}
+
+async function deleteLibItem(id){
+  if(!confirm('Remover este circuito?')) return;
+  try{ await dbDeleteRecord('library', id); } catch(e){
+    const arr = JSON.parse(localStorage.getItem('simLib')||'[]').filter(i=>i.id!==id);
+    localStorage.setItem('simLib', JSON.stringify(arr));
+  }
+  loadLibrary();
+  addLog('Circuito removido da biblioteca','warn');
+}
+
+async function dbExport(){
+  let items=[];
+  try{ items=await dbGetAll('library'); }
+  catch(e){ items=JSON.parse(localStorage.getItem('simLib')||'[]'); }
+  const blob=new Blob([JSON.stringify(items,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`simeletric-lib-${Date.now()}.json`; a.click();
+  addLog('Biblioteca exportada','info');
+}
+
+function dbImport(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const arr=JSON.parse(e.target.result);
+      for(const item of arr){ delete item.id; await dbPut('library',item); }
+      loadLibrary(); addLog(`${arr.length} circuitos importados`,'on');
+    } catch(err){ alert('Erro ao importar: '+err.message); }
+  };
+  reader.readAsText(file);
+}
+
+async function showDbStats(){
+  let items=[];
+  try{ items=await dbGetAll('library'); } catch(e){ items=JSON.parse(localStorage.getItem('simLib')||'[]'); }
+  const cats={};
+  items.forEach(i=>{ cats[i.cat||'Sem categoria']=(cats[i.cat||'Sem categoria']||0)+1; });
+  const size=new TextEncoder().encode(JSON.stringify(items)).length;
+  let html=`<b>Total de circuitos:</b> ${items.length}<br>`;
+  html+=`<b>Tamanho estimado:</b> ${(size/1024).toFixed(1)} KB<br><br>`;
+  html+=`<b>Por categoria:</b><br>`;
+  Object.entries(cats).forEach(([k,v])=>{ html+=`&nbsp;&nbsp;${k}: ${v}<br>`; });
+  document.getElementById('dbStatsContent').innerHTML=html;
+  openModal('dbModal');
+}
+
+// ============================================================
+// EXPORT JSON
+// ============================================================
+function exportJSON(){
+  const data={components,wires,meta:{version:'4.0',date:new Date().toISOString()}};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`circuito-${Date.now()}.json`; a.click();
+  addLog('Circuito exportado como JSON','info');
+}
+
+// ============================================================
+// RESET
+// ============================================================
+function resetAll(){
+  if(!confirm('Limpar todo o canvas?')) return;
+  components=[]; wires=[]; selectedComp=null; nextId=1;
+  compsLayer.innerHTML=''; wiresLayer.innerHTML='';
+  renderProps(null);
+  addLog('Canvas limpo','warn');
+  stopSimulation();
+}
+
+// ============================================================
+// PLACEHOLDER FUNCTIONS (implemented in next parts)
+// ============================================================
+function addComponent(type,x,y){ /* Part 2 */ addLog(`Componente adicionado: ${type}`,'info'); }
+function renderProps(comp){ document.getElementById('propsContent').innerHTML=comp?`<div class="no-sel">Componente: ${comp.tag||comp.type}</div>`:`<div class="no-sel"><div style="font-size:32px;margin-bottom:8px;">🖱️</div>Selecione um componente</div>`; }
+function loadCircuit(name,builtin){ addLog(`Carregando circuito: ${name}`,'info'); }
+function getBuiltInCircuits(){ return []; }
+function runSimulation(){ addLog('Simulação iniciada','on'); }
+function stopSimulation(){}
+function cancelWiring(){}
+function renderExercises(){}
+
+// ============================================================
+// CRANE VISUALIZER
+// ============================================================
+let craneX=130, craneY=60;
+function updateCraneViz(){
+  const trolley=document.getElementById('craneTrolley');
+  const rope=document.getElementById('craneRope');
+  const hook=document.getElementById('craneHook');
+  const ropeLen = 16 + (craneY/100)*60;
+  trolley.setAttribute('transform',`translate(${craneX},20)`);
+  rope.setAttribute('y2',ropeLen);
+  hook.setAttribute('transform',`translate(0,${ropeLen})`);
+}
+updateCraneViz();
+
+// ============================================================
+// INIT
+// ============================================================
+initDB().then(()=>{
+  addLog('IndexedDB conectado (SimEletricDB)','on');
+  loadLibrary();
+  renderExercises();
+}).catch(()=>{
+  addLog('Usando localStorage (fallback)','warn');
+  loadLibrary();
+});
+</script>
+
+<script>
+// ============================================================
+// PARTE 2 — COMPONENTES SVG + DRAG + WIRE SYSTEM
+// ============================================================
+
+// Component definitions: type -> {label, w, h, terminals, draw(g,comp)}
+const COMP_DEFS = {
+  fase:     { label:'Fase L', w:40, h:40, color:'#f85149' },
+  neutro:   { label:'Neutro N', w:40, h:40, color:'#8b949e' },
+  qg:       { label:'QG', w:60, h:80, color:'#58a6ff' },
+  disj:     { label:'QF', w:50, h:70, color:'#58a6ff' },
+  contator: { label:'KM', w:70, h:90, color:'#1f6feb' },
+  contNA:   { label:'NA', w:40, h:40, color:'#3fb950' },
+  contNF:   { label:'NF', w:40, h:40, color:'#f85149' },
+  rele:     { label:'FR', w:60, h:60, color:'#d29922' },
+  botNA:    { label:'S', w:44, h:44, color:'#3fb950' },
+  botNF:    { label:'S', w:44, h:44, color:'#f85149' },
+  fcNA:     { label:'LS', w:44, h:44, color:'#3fb950' },
+  fcNF:     { label:'LS', w:44, h:44, color:'#f85149' },
+  timer:    { label:'KT', w:60, h:70, color:'#bc8cff' },
+  emg:      { label:'EMG', w:44, h:44, color:'#f85149' },
+  lampVerde:{ label:'HL', w:36, h:36, color:'#3fb950' },
+  lampVerm: { label:'HL', w:36, h:36, color:'#f85149' },
+  lampAmar: { label:'HL', w:36, h:36, color:'#d29922' },
+  buzzer:   { label:'BZ', w:40, h:40, color:'#db6d28' },
+  motor:    { label:'M', w:70, h:70, color:'#58a6ff' },
+  motor2v:  { label:'M2V', w:80, h:90, color:'#58a6ff' },
+  vfd:      { label:'VFD', w:80, h:90, color:'#bc8cff' },
+  anem:     { label:'AN', w:44, h:44, color:'#58a6ff' },
+  trava:    { label:'STP', w:44, h:44, color:'#d29922' },
+};
+
+const DEFAULT_TAGS = {
+  fase:'L',neutro:'N',qg:'QG',disj:'QF',contator:'KM',
+  contNA:'NA',contNF:'NF',rele:'FR',botNA:'S-LIGA',botNF:'S-DESL',
+  fcNA:'LS',fcNF:'LS',timer:'KT',emg:'EMG',
+  lampVerde:'HL-V',lampVerm:'HL-R',lampAmar:'HL-A',
+  buzzer:'BZ',motor:'M',motor2v:'M',vfd:'VFD',
+  anem:'AN',trava:'STP'
+};
+
+// terminal positions relative to component center
+function getTerminals(type, w, h){
+  const hw=w/2, hh=h/2;
+  const T=(id,cx,cy,label)=>({id,cx,cy,label,energized:false});
+  switch(type){
+    case 'fase':   return [T('out',0,hh,'')];
+    case 'neutro': return [T('in',0,-hh,'')];
+    case 'qg':     return [T('L1',-15,-hh,'L1'),T('L2',0,-hh,'L2'),T('L3',15,-hh,'L3'),
+                           T('T1',-15,hh,'T1'),T('T2',0,hh,'T2'),T('T3',15,hh,'T3')];
+    case 'disj':   return [T('in',0,-hh,''),T('out',0,hh,'')];
+    case 'contator':return [T('L1',-20,-hh,'L1'),T('L2',0,-hh,'L2'),T('L3',20,-hh,'L3'),
+                            T('T1',-20,hh,'T1'),T('T2',0,hh,'T2'),T('T3',20,hh,'T3'),
+                            T('A1',-hw,-10,'A1'),T('A2',-hw,10,'A2')];
+    case 'contNA': return [T('in',-hw,0,''),T('out',hw,0,'')];
+    case 'contNF': return [T('in',-hw,0,''),T('out',hw,0,'')];
+    case 'rele':   return [T('in',-hw,0,''),T('out',hw,0,''),T('nf',0,hh,'NF')];
+    case 'botNA':  return [T('in',-hw,0,''),T('out',hw,0,'')];
+    case 'botNF':  return [T('in',-hw,0,''),T('out',hw,0,'')];
+    case 'fcNA':   return [T('in',-hw,0,''),T('out',hw,0,'')];
+    case 'fcNF':   return [T('in',-hw,0,''),T('out',hw,0,'')];
+    case 'timer':  return [T('coilA1',-hw,-15,'A1'),T('coilA2',-hw,15,'A2'),
+                           T('out',hw,0,'NO')];
+    case 'emg':    return [T('in',-hw,0,''),T('out',hw,0,'')];
+    case 'lampVerde':case 'lampVerm':case 'lampAmar':
+                   return [T('in',-hw,0,''),T('out',hw,0,'')];
+    case 'buzzer': return [T('in',-hw,0,''),T('out',hw,0,'')];
+    case 'motor':  return [T('U',-20,-hh,'U'),T('V',0,-hh,'V'),T('W',20,-hh,'W')];
+    case 'motor2v':return [T('U1',-25,-hh,'U1'),T('V1',0,-hh,'V1'),T('W1',25,-hh,'W1'),
+                           T('U2',-25,hh,'U2'),T('V2',0,hh,'V2'),T('W2',25,hh,'W2')];
+    case 'vfd':    return [T('R',-25,-hh,'R'),T('S',0,-hh,'S'),T('T',25,-hh,'T'),
+                           T('U',-25,hh,'U'),T('V',0,hh,'V'),T('W',25,hh,'W'),
+                           T('DI1',-hw,-20,'DI1'),T('DI2',-hw,20,'DI2')];
+    case 'anem':   return [T('in',-hw,0,''),T('out',hw,0,'')];
+    case 'trava':  return [T('in',-hw,0,''),T('out',hw,0,'')];
+    default:       return [T('in',-hw,0,''),T('out',hw,0,'')];
+  }
+}
+
+// SVG drawing for each component
+function drawCompSVG(g, comp){
+  const def = COMP_DEFS[comp.type]||{label:comp.type,w:50,h:50,color:'#58a6ff'};
+  const w=def.w, h=def.h, hw=w/2, hh=h/2;
+  const c=def.color;
+  const st=comp.state||'off';
+  const isOn = st==='on'||st==='energized'||st==='girando'||st==='v1'||st==='v2'||st==='running';
+  const isTrip = st==='trip'||st==='sobrecarga';
+  const bodyColor = isTrip?'#5c1e1e': isOn?'#1a3a1a':'#21262d';
+  const borderColor = isTrip?'#f85149': isOn?'#3fb950':c;
+
+  g.innerHTML='';
+
+  // Shadow/glow when on
+  if(isOn){
+    const glow=svgEl_(g,'rect',{x:-hw,y:-hh,width:w,height:h,rx:6,
+      fill:'none',stroke:c,'stroke-width':'4',opacity:'.2',filter:'url(#glow)'});
+  }
+
+  // Body
+  svgEl_(g,'rect',{x:-hw,y:-hh,width:w,height:h,rx:5,
+    fill:bodyColor,stroke:borderColor,'stroke-width':'1.5',class:'comp-body'});
+
+  // Type-specific graphics
+  switch(comp.type){
+    case 'fase':
+      svgEl_(g,'text',{x:0,y:5,'text-anchor':'middle',fill:c,
+        'font-size':'20','font-weight':'700'},c==='#f85149'?'L':'L');
+      svgEl_(g,'text',{x:0,y:-14,'text-anchor':'middle',fill:'#f85149','font-size':'22'},'〽');
+      break;
+    case 'neutro':
+      svgEl_(g,'text',{x:0,y:6,'text-anchor':'middle',fill:'#8b949e','font-size':'18','font-weight':'700'},'N');
+      svgEl_(g,'text',{x:0,y:-14,'text-anchor':'middle',fill:'#8b949e','font-size':'22'},'⏚');
+      break;
+    case 'qg': case 'disj':
+      svgEl_(g,'line',{x1:0,y1:-hh+8,x2:0,y2:-10,stroke:c,'stroke-width':'3','stroke-linecap':'round'});
+      if(st==='fechado'||st==='on'){
+        svgEl_(g,'line',{x1:0,y1:-10,x2:0,y2:10,stroke:c,'stroke-width':'3'});
+      } else {
+        svgEl_(g,'line',{x1:0,y1:-10,x2:16,y2:8,stroke:isTrip?'#f85149':'#8b949e','stroke-width':'3'});
+      }
+      svgEl_(g,'line',{x1:0,y1:10,x2:0,y2:hh-8,stroke:c,'stroke-width':'3','stroke-linecap':'round'});
+      if(comp.type==='qg'){
+        svgEl_(g,'line',{x1:-15,y1:-hh+8,x2:-15,y2:hh-8,stroke:c,'stroke-width':'2',opacity:'.5'});
+        svgEl_(g,'line',{x1:15,y1:-hh+8,x2:15,y2:hh-8,stroke:c,'stroke-width':'2',opacity:'.5'});
+      }
+      break;
+    case 'contator':
+      // Power contacts
+      [-20,0,20].forEach(ox=>{
+        svgEl_(g,'line',{x1:ox,y1:-hh+10,x2:ox,y2:-15,stroke:c,'stroke-width':'2.5'});
+        if(isOn){
+          svgEl_(g,'line',{x1:ox-8,y1:-8,x2:ox+8,y2:-8,stroke:c,'stroke-width':'2.5'});
+          svgEl_(g,'line',{x1:ox-8,y1:8,x2:ox+8,y2:8,stroke:c,'stroke-width':'2.5'});
+          svgEl_(g,'line',{x1:ox,y1:-8,x2:ox,y2:8,stroke:c,'stroke-width':'2.5'});
+        } else {
+          svgEl_(g,'line',{x1:ox-8,y1:-8,x2:ox+8,y2:8,stroke:'#8b949e','stroke-width':'2'});
+        }
+        svgEl_(g,'line',{x1:ox,y1:15,x2:ox,y2:hh-10,stroke:c,'stroke-width':'2.5'});
+      });
+      // Coil
+      svgEl_(g,'rect',{x:-hw+6,y:-18,width:16,height:36,rx:3,fill:'#0d1117',stroke:c,'stroke-width':'1.5'});
+      svgEl_(g,'text',{x:-hw+14,y:5,'text-anchor':'middle',fill:c,'font-size':'9'},'A1');
+      svgEl_(g,'text',{x:-hw+14,y:18,'text-anchor':'middle',fill:c,'font-size':'9'},'A2');
+      break;
+    case 'contNA':
+      svgEl_(g,'line',{x1:-hw+4,y1:0,x2:-8,y2:0,stroke:c,'stroke-width':'2.5'});
+      svgEl_(g,'line',{x1:8,y1:0,x2:hw-4,y2:0,stroke:c,'stroke-width':'2.5'});
+      if(isOn){
+        svgEl_(g,'line',{x1:-8,y1:0,x2:8,y2:0,stroke:c,'stroke-width':'2.5'});
+      } else {
+        svgEl_(g,'line',{x1:-8,y1:-8,x2:8,y2:0,stroke:'#8b949e','stroke-width':'2'});
+      }
+      break;
+    case 'contNF':
+      svgEl_(g,'line',{x1:-hw+4,y1:0,x2:-8,y2:0,stroke:c,'stroke-width':'2.5'});
+      svgEl_(g,'line',{x1:8,y1:0,x2:hw-4,y2:0,stroke:c,'stroke-width':'2.5'});
+      svgEl_(g,'line',{x1:-8,y1:-8,x2:8,y2:-8,stroke:c,'stroke-width':'2.5'}); // NF bar
+      if(!isOn){
+        svgEl_(g,'line',{x1:-8,y1:-8,x2:8,y2:0,stroke:c,'stroke-width':'2.5'});
+      } else {
+        svgEl_(g,'line',{x1:-8,y1:0,x2:8,y2:0,stroke:'#8b949e','stroke-width':'2'});
+      }
+      break;
+    case 'rele':
+      svgEl_(g,'rect',{x:-hw+4,y:-10,width:w-8,height:20,rx:3,fill:'#0d1117',stroke:isTrip?'#f85149':c,'stroke-width':'1.5'});
+      svgEl_(g,'text',{x:0,y:5,'text-anchor':'middle',fill:isTrip?'#f85149':c,'font-size':'11','font-weight':'600'},isTrip?'TRIP':'OK');
+      break;
+    case 'botNA': case 'botNF':
+      svgEl_(g,'circle',{cx:0,cy:0,r:14,fill:isOn?c:'#0d1117',stroke:c,'stroke-width':'2'});
+      svgEl_(g,'line',{x1:-hw+4,y1:0,x2:-14,y2:0,stroke:c,'stroke-width':'2.5'});
+      svgEl_(g,'line',{x1:14,y1:0,x2:hw-4,y2:0,stroke:c,'stroke-width':'2.5'});
+      if(comp.type==='botNF'){
+        svgEl_(g,'line',{x1:-8,y1:-8,x2:8,y2:-8,stroke:c,'stroke-width':'2','stroke-dasharray':'3,2'});
+      }
+      break;
+    case 'fcNA': case 'fcNF':
+      svgEl_(g,'rect',{x:-12,y:-12,width:24,height:24,rx:4,fill:'#0d1117',stroke:c,'stroke-width':'1.5'});
+      svgEl_(g,'line',{x1:-hw+4,y1:0,x2:-12,y2:0,stroke:c,'stroke-width':'2.5'});
+      svgEl_(g,'line',{x1:12,y1:0,x2:hw-4,y2:0,stroke:c,'stroke-width':'2.5'});
+      svgEl_(g,'text',{x:0,y:5,'text-anchor':'middle',fill:c,'font-size':'10'},comp.type==='fcNA'?'NA':'NF');
+      break;
+    case 'timer':
+      svgEl_(g,'circle',{cx:10,cy:-8,r:16,fill:'#0d1117',stroke:c,'stroke-width':'1.5'});
+      const pct = comp.timerPct||0;
+      if(pct>0){
+        const ang = (pct/100)*2*Math.PI - Math.PI/2;
+        const ex=10+16*Math.cos(ang), ey=-8+16*Math.sin(ang);
+        svgEl_(g,'path',{d:`M10,-8 L10,-24 A16,16 0 ${pct>50?1:0},1 ${ex},${ey} Z`,
+          fill:c,opacity:'.3'});
+      }
+      svgEl_(g,'text',{x:10,y:-4,'text-anchor':'middle',fill:c,'font-size':'9'},
+        comp.timerVal!=null?comp.timerVal+'s':(comp.params?.delay||5)+'s');
+      svgEl_(g,'line',{x1:-hw+4,y1:-15,x2:-4,y2:-15,stroke:c,'stroke-width':'2','stroke-dasharray':'3,2'});
+      svgEl_(g,'line',{x1:-hw+4,y1:15,x2:-4,y2:15,stroke:c,'stroke-width':'2','stroke-dasharray':'3,2'});
+      break;
+    case 'emg':
+      svgEl_(g,'circle',{cx:0,cy:0,r:18,fill:isOn?'#5c1e1e':'#0d1117',stroke:'#f85149','stroke-width':'2.5'});
+      svgEl_(g,'text',{x:0,y:5,'text-anchor':'middle',fill:'#f85149','font-size':'14'},isOn?'🛑':'⭕');
+      svgEl_(g,'line',{x1:-hw+4,y1:0,x2:-18,y2:0,stroke:'#f85149','stroke-width':'2.5'});
+      svgEl_(g,'line',{x1:18,y1:0,x2:hw-4,y2:0,stroke:'#f85149','stroke-width':'2.5'});
+      break;
+    case 'lampVerde': case 'lampVerm': case 'lampAmar':
+      svgEl_(g,'circle',{cx:0,cy:0,r:14,fill:isOn?c:'#0d1117',stroke:c,'stroke-width':'2',
+        filter:isOn?'url(#glow)':'none'});
+      svgEl_(g,'line',{x1:-hw+4,y1:0,x2:-14,y2:0,stroke:c,'stroke-width':'2'});
+      svgEl_(g,'line',{x1:14,y1:0,x2:hw-4,y2:0,stroke:c,'stroke-width':'2'});
+      break;
+    case 'buzzer':
+      svgEl_(g,'polygon',{points:'-10,-8 10,-8 10,8 -10,8',fill:isOn?c:'#0d1117',stroke:c,'stroke-width':'2'});
+      svgEl_(g,'polygon',{points:'10,-12 20,-16 20,16 10,12',fill:isOn?c:'#0d1117',stroke:c,'stroke-width':'2'});
+      svgEl_(g,'line',{x1:-hw+4,y1:0,x2:-10,y2:0,stroke:c,'stroke-width':'2'});
+      break;
+    case 'motor':
+      svgEl_(g,'circle',{cx:0,cy:8,r:24,fill:bodyColor,stroke:isOn?'#3fb950':c,'stroke-width':'2',
+        filter:isOn?'url(#glow)':'none'});
+      svgEl_(g,'text',{x:0,y:14,'text-anchor':'middle',fill:isOn?'#3fb950':c,'font-size':'16','font-weight':'700'},'M');
+      if(isOn){
+        svgEl_(g,'text',{x:0,y:26,'text-anchor':'middle',fill:'#3fb950','font-size':'8'},'~');
+      }
+      break;
+    case 'motor2v':
+      svgEl_(g,'circle',{cx:0,cy:5,r:26,fill:bodyColor,stroke:st==='v2'?'#3fb950':st==='v1'?'#d29922':c,'stroke-width':'2'});
+      svgEl_(g,'text',{x:0,y:10,'text-anchor':'middle',fill:c,'font-size':'14','font-weight':'700'},'M');
+      const spd=st==='v2'?100:st==='v1'?40:0;
+      svgEl_(g,'rect',{x:-22,y:20,width:44,height:6,rx:3,fill:'#0d1117',stroke:'#30363d','stroke-width':'1'});
+      svgEl_(g,'rect',{x:-22,y:20,width:spd*.44,height:6,rx:3,fill:st==='v2'?'#3fb950':'#d29922'});
+      svgEl_(g,'text',{x:0,y:36,'text-anchor':'middle',fill:'#8b949e','font-size':'8'},
+        st==='v2'?'V2 ~1400rpm':st==='v1'?'V1 ~700rpm':'PARADO');
+      break;
+    case 'vfd':
+      svgEl_(g,'rect',{x:-hw+6,y:-hh+20,width:w-12,height:h-30,rx:4,fill:'#0d1117',stroke:c,'stroke-width':'1'});
+      const hz=comp.params?.hz||0;
+      const rpm=Math.round(hz*60/2);
+      svgEl_(g,'text',{x:0,y:-4,'text-anchor':'middle',fill:c,'font-size':'14','font-weight':'700'},hz+'Hz');
+      svgEl_(g,'text',{x:0,y:12,'text-anchor':'middle',fill:'#8b949e','font-size':'9'},rpm+'rpm');
+      svgEl_(g,'text',{x:0,y:-hh+12,'text-anchor':'middle',fill:c,'font-size':'9'},'VFD');
+      break;
+    case 'anem':
+      svgEl_(g,'circle',{cx:0,cy:0,r:14,fill:'#0d1117',stroke:c,'stroke-width':'2'});
+      svgEl_(g,'text',{x:0,y:5,'text-anchor':'middle',fill:c,'font-size':'14'},'💨');
+      svgEl_(g,'line',{x1:-hw+4,y1:0,x2:-14,y2:0,stroke:c,'stroke-width':'2'});
+      svgEl_(g,'line',{x1:14,y1:0,x2:hw-4,y2:0,stroke:c,'stroke-width':'2'});
+      break;
+    case 'trava':
+      svgEl_(g,'rect',{x:-12,y:-12,width:24,height:24,rx:3,fill:'#0d1117',stroke:c,'stroke-width':'2'});
+      svgEl_(g,'text',{x:0,y:5,'text-anchor':'middle',fill:isOn?'#f85149':c,'font-size':'14'},isOn?'🔒':'🔓');
+      svgEl_(g,'line',{x1:-hw+4,y1:0,x2:-12,y2:0,stroke:c,'stroke-width':'2'});
+      svgEl_(g,'line',{x1:12,y1:0,x2:hw-4,y2:0,stroke:c,'stroke-width':'2'});
+      break;
+  }
+
+  // Tag label
+  svgEl_(g,'text',{x:0,y:-hh-6,'text-anchor':'middle',class:'comp-tag'},comp.tag||def.label);
+  // State label
+  const stateText=isTrip?'TRIP':isOn?'ON':'—';
+  const stCls='comp-state'+(isTrip?' trip':isOn?'':' off');
+  svgEl_(g,'text',{x:0,y:hh+14,'text-anchor':'middle',class:stCls},stateText);
+
+  // Terminals
+  const terms = comp.terminals||[];
+  terms.forEach(term=>{
+    const tc=svgEl_(g,'circle',{cx:term.cx,cy:term.cy,r:5,
+      class:'terminal-dot'+(term.energized?' energized':''),
+      'data-comp':comp.id,'data-term':term.id});
+    tc.classList.add('terminal');
+    tc.addEventListener('mousedown', e=>{ e.stopPropagation(); onTerminalClick(comp.id, term.id, e); });
+    // Label
+    if(term.label){
+      svgEl_(g,'text',{x:term.cx+(term.cx<0?-8:8),y:term.cy+4,
+        'text-anchor':term.cx<0?'end':'start',class:'comp-label'},term.label);
+    }
+  });
+}
+
+function svgEl_(parent, tag, attrs={}, text){
+  const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));
+  if(text!=null) el.textContent=text;
+  parent.appendChild(el);
+  return el;
+}
+
+// ============================================================
+// ADD COMPONENT
+// ============================================================
+addComponent = function(type, x, y){
+  const def = COMP_DEFS[type]||{label:type,w:50,h:50,color:'#58a6ff'};
+  const id = 'C'+(nextId++);
+  const tag = (DEFAULT_TAGS[type]||type)+(components.filter(c=>c.type===type).length+1>1?components.filter(c=>c.type===type).length+1:'');
+  const terms = getTerminals(type, def.w, def.h);
+
+  const initState = {
+    qg:'fechado', disj:'fechado', emg:'fechado',
+    contator:'off', contNA:'off', contNF:'on',
+    botNA:'off', botNF:'on', fcNA:'off', fcNF:'on',
+    rele:'ok', anem:'on', trava:'off'
+  }[type]||'off';
+
+  const comp = {
+    id, type, x, y,
+    tag: DEFAULT_TAGS[type]||tag,
+    state: initState,
+    params: type==='timer'?{delay:5,elapsed:0}: type==='vfd'?{brand:'WEG',hz:0,maxHz:60,accel:5,decel:5}:{},
+    terminals: terms
+  };
+  components.push(comp);
+  renderComponent(comp);
+  addLog(`${comp.tag} (${type}) adicionado`,'info');
+  return comp;
+};
+
+// ============================================================
+// RENDER COMPONENT
+// ============================================================
+function renderComponent(comp){
+  let g = document.getElementById(comp.id);
+  if(!g){
+    g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.id = comp.id;
+    g.classList.add('comp-group');
+    compsLayer.appendChild(g);
+
+    // Drag
+    let dragging=false, ox=0, oy=0;
+    g.addEventListener('mousedown', e=>{
+      if(mode==='delete'){ deleteComponent(comp.id); return; }
+      if(mode!=='move'){ return; }
+      e.stopPropagation();
+      dragging=true;
+      const pt=svgPoint(e.clientX,e.clientY);
+      ox=pt.x-comp.x; oy=pt.y-comp.y;
+      selectComponent(comp.id);
+    });
+    window.addEventListener('mousemove', e=>{
+      if(!dragging) return;
+      const pt=svgPoint(e.clientX,e.clientY);
+      comp.x=Math.round((pt.x-ox)/8)*8;
+      comp.y=Math.round((pt.y-oy)/8)*8;
+      g.setAttribute('transform',`translate(${comp.x},${comp.y})`);
+      updateWiresForComp(comp.id);
+    });
+    window.addEventListener('mouseup',()=>{ dragging=false; });
+
+    // Click select
+    g.addEventListener('click',e=>{
+      if(mode==='move'){ selectComponent(comp.id); }
+    });
+  }
+  g.setAttribute('transform',`translate(${comp.x},${comp.y})`);
+  drawCompSVG(g, comp);
+}
+
+function refreshComp(compId){
+  const comp=components.find(c=>c.id===compId);
+  if(comp) renderComponent(comp);
+}
+
+// ============================================================
+// SELECT
+// ============================================================
+function selectComponent(id){
+  selectedComp = components.find(c=>c.id===id)||null;
+  renderProps(selectedComp);
+  // highlight
+  document.querySelectorAll('.comp-group').forEach(g=>{
+    g.style.opacity = (!selectedComp||g.id===id)?'1':'0.7';
+  });
+  if(selectedComp?.type==='vfd') showTab('vfd');
+}
+
+// ============================================================
+// DELETE COMPONENT
+// ============================================================
+function deleteComponent(id){
+  // remove wires
+  wires = wires.filter(w=>{
+    if(w.fromComp===id||w.toComp===id){
+      document.getElementById(w.id)?.remove();
+      return false;
+    }
+    return true;
+  });
+  components = components.filter(c=>c.id!==id);
+  document.getElementById(id)?.remove();
+  if(selectedComp?.id===id){ selectedComp=null; renderProps(null); }
+  addLog(`Componente removido`,'warn');
+}
+
+// ============================================================
+// WIRE SYSTEM
+// ============================================================
+function onTerminalClick(compId, termId, e){
+  if(mode==='wire'){
+    const comp=components.find(c=>c.id===compId);
+    const term=comp?.terminals.find(t=>t.id===termId);
+    if(!term) return;
+    const gx=comp.x+term.cx, gy=comp.y+term.cy;
+    if(!wiringFrom){
+      wiringFrom={compId,termId,x:gx,y:gy};
+      // temp wire
+      tempWireLine=document.createElementNS('http://www.w3.org/2000/svg','path');
+      tempWireLine.setAttribute('class','wire-path');
+      tempWireLine.setAttribute('stroke-dasharray','6,4');
+      tempWireLine.setAttribute('opacity','.6');
+      wiresLayer.appendChild(tempWireLine);
+    } else {
+      if(wiringFrom.compId===compId&&wiringFrom.termId===termId){ cancelWiring(); return; }
+      // create wire
+      const wid='W'+(nextId++);
+      const wire={
+        id:wid,
+        fromComp:wiringFrom.compId,fromTerm:wiringFrom.termId,
+        toComp:compId,toTerm:termId,
+        energized:false
+      };
+      wires.push(wire);
+      renderWire(wire);
+      cancelWiring();
+      addLog(`Fio conectado: ${wiringFrom.compId}.${wiringFrom.termId} → ${compId}.${termId}`,'info');
+    }
+  } else if(mode==='delete'){
+    // handled by comp delete, but also can click terminal area
+  }
+}
+
+cancelWiring = function(){
+  wiringFrom=null;
+  tempWireLine?.remove();
+  tempWireLine=null;
+};
+
+function renderWire(wire){
+  const fc=components.find(c=>c.id===wire.fromComp);
+  const tc=components.find(c=>c.id===wire.toComp);
+  if(!fc||!tc) return;
+  const ft=fc.terminals.find(t=>t.id===wire.fromTerm);
+  const tt=tc.terminals.find(t=>t.id===wire.toTerm);
+  if(!ft||!tt) return;
+  const x1=fc.x+ft.cx, y1=fc.y+ft.cy;
+  const x2=tc.x+tt.cx, y2=tc.y+tt.cy;
+  const dx=x2-x1, dy=y2-y1;
+
+  let path=document.getElementById(wire.id);
+  if(!path){
+    path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.id=wire.id;
+    path.classList.add('wire-path');
+    wiresLayer.appendChild(path);
+    path.addEventListener('click',e=>{
+      if(mode==='delete'){
+        wires=wires.filter(w=>w.id!==wire.id);
+        path.remove();
+        addLog('Fio removido','warn');
+      }
+    });
+  }
+  path.setAttribute('d',`M${x1},${y1} C${x1+dx*.4},${y1} ${x2-dx*.4},${y2} ${x2},${y2}`);
+  path.classList.toggle('energized', !!wire.energized);
+}
+
+function updateWiresForComp(compId){
+  wires.forEach(w=>{
+    if(w.fromComp===compId||w.toComp===compId) renderWire(w);
+  });
+}
+
+function renderAllWires(){
+  wires.forEach(w=>renderWire(w));
+}
+
+// ============================================================
+// PROPS PANEL
+// ============================================================
+renderProps = function(comp){
+  const el=document.getElementById('propsContent');
+  if(!comp){
+    el.innerHTML=`<div class="no-sel"><div style="font-size:32px;margin-bottom:8px;">🖱️</div>Selecione um componente<br>para ver e editar propriedades</div>`;
+    return;
+  }
+  const def=COMP_DEFS[comp.type]||{};
+  let stateOptions='';
+  const stateMap={
+    qg:['fechado','aberto','trip'],disj:['fechado','aberto','trip'],
+    contator:['off','energized'],contNA:['off','on'],contNF:['on','off'],
+    rele:['ok','sobrecarga'],botNA:['off','on'],botNF:['on','off'],
+    fcNA:['off','on'],fcNF:['on','off'],emg:['on','off'],
+    motor:['off','girando'],motor2v:['off','v1','v2'],
+    lampVerde:['off','on'],lampVerm:['off','on'],lampAmar:['off','on'],
+    buzzer:['off','on'],anem:['on','off'],trava:['off','on'],
+    vfd:['off','running'],timer:['off','on'],fase:['on'],neutro:['on']
+  };
+  (stateMap[comp.type]||['off','on']).forEach(s=>{
+    stateOptions+=`<option value="${s}"${comp.state===s?' selected':''}>${s.toUpperCase()}</option>`;
+  });
+
+  el.innerHTML=`
+    <div class="prop-group">
+      <span class="prop-label">Tag / Nome</span>
+      <input class="prop-input" id="pTag" value="${comp.tag||''}" onchange="setProp('tag',this.value)">
+    </div>
+    <div class="prop-group">
+      <span class="prop-label">Tipo</span>
+      <input class="prop-input" value="${comp.type}" disabled style="opacity:.5">
+    </div>
+    <div class="prop-group">
+      <span class="prop-label">Estado</span>
+      <select class="prop-select" onchange="setProp('state',this.value)">${stateOptions}</select>
+    </div>
+    ${comp.type==='timer'?`
+    <div class="prop-group">
+      <span class="prop-label">Tempo (segundos)</span>
+      <input class="prop-input" type="number" min="1" max="120" value="${comp.params?.delay||5}"
+        onchange="setParam('delay',+this.value)">
+    </div>`:''}
+    ${comp.type==='vfd'?`
+    <div class="prop-group">
+      <span class="prop-label">Frequência (Hz)</span>
+      <input class="prop-input" type="number" min="0" max="120" value="${comp.params?.hz||0}"
+        onchange="setParam('hz',+this.value);refreshComp('${comp.id}')">
+    </div>
+    <div class="prop-group">
+      <span class="prop-label">Marca</span>
+      <select class="prop-select" onchange="setParam('brand',this.value);renderVFDPanel()">
+        ${['WEG','ABB','Schneider','Siemens','Yaskawa'].map(b=>`<option${comp.params?.brand===b?' selected':''}>${b}</option>`).join('')}
+      </select>
+    </div>`:''}
+    <div class="prop-group">
+      <span class="prop-label">Posição</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <input class="prop-input" type="number" value="${Math.round(comp.x)}" placeholder="X"
+          onchange="comp.x=+this.value;refreshComp('${comp.id}');updateWiresForComp('${comp.id}')">
+        <input class="prop-input" type="number" value="${Math.round(comp.y)}" placeholder="Y"
+          onchange="comp.y=+this.value;refreshComp('${comp.id}');updateWiresForComp('${comp.id}')">
+      </div>
+    </div>
+    <div class="prop-actions">
+      <button class="btn red" onclick="deleteComponent('${comp.id}')">🗑 Remover</button>
+      <button class="btn" onclick="duplicateComp('${comp.id}')">📋 Duplicar</button>
+    </div>`;
+};
+
+function setProp(prop, val){
+  if(!selectedComp) return;
+  selectedComp[prop]=val;
+  refreshComp(selectedComp.id);
+  addLog(`${selectedComp.tag}: ${prop}=${val}`, val==='on'||val==='energized'||val==='girando'?'on':'off');
+}
+function setParam(param,val){
+  if(!selectedComp) return;
+  if(!selectedComp.params) selectedComp.params={};
+  selectedComp.params[param]=val;
+  refreshComp(selectedComp.id);
+}
+
+function duplicateComp(id){
+  const orig=components.find(c=>c.id===id);
+  if(!orig) return;
+  addComponent(orig.type, orig.x+60, orig.y+60);
+}
+</script>
+
+<script>
+// ============================================================
+// PARTE 3 — LÓGICA ELÉTRICA + CIRCUITOS BIBLIOTECA
+// ============================================================
+
+let simInterval = null;
+
+runSimulation = function(){
+  stopSimulation();
+  simInterval = setInterval(()=>{
+    propagateElectricity();
+  }, 200);
+  addLog('Simulação automática iniciada','on');
+};
+
+stopSimulation = function(){
+  if(simInterval){ clearInterval(simInterval); simInterval=null; }
+};
+
+function propagateElectricity(){
+  // Reset all terminal energized states
+  components.forEach(comp=>{
+    comp.terminals.forEach(t=>{ t.energized=false; });
+  });
+  wires.forEach(w=>{ w.energized=false; });
+
+  // Find all fase sources
+  const fases = components.filter(c=>c.type==='fase');
+  const energizedTerms = new Set(); // "compId.termId"
+
+  fases.forEach(f=>{
+    f.terminals.forEach(t=>{ t.energized=true; energizedTerms.add(f.id+'.'+t.id); });
+  });
+
+  // BFS propagation
+  let changed=true;
+  let iters=0;
+  while(changed && iters<50){
+    changed=false; iters++;
+
+    // For each wire: if from-terminal energized, check if component conducts, then energize to-terminal
+    wires.forEach(wire=>{
+      const fromKey=wire.fromComp+'.'+wire.fromTerm;
+      const toKey=wire.toComp+'.'+wire.toTerm;
+
+      [
+        {srcKey:fromKey,dstComp:wire.toComp,dstTerm:wire.toTerm,wire},
+        {srcKey:toKey,dstComp:wire.fromComp,dstTerm:wire.fromTerm,wire}
+      ].forEach(({srcKey,dstComp,dstTerm,wire})=>{
+        if(!energizedTerms.has(srcKey)) return;
+        const comp=components.find(c=>c.id===dstComp);
+        if(!comp) return;
+        const term=comp.terminals.find(t=>t.id===dstTerm);
+        if(!term) return;
+
+        // Check conduction through component
+        const paired = getPairedTerminals(comp, dstTerm);
+        paired.forEach(outTermId=>{
+          const outKey=comp.id+'.'+outTermId;
+          if(!energizedTerms.has(outKey)){
+            if(conducts(comp, dstTerm, outTermId)){
+              energizedTerms.add(outKey);
+              const outTerm=comp.terminals.find(t=>t.id===outTermId);
+              if(outTerm) outTerm.energized=true;
+              wire.energized=true;
+              changed=true;
+            }
+          } else {
+            wire.energized=true;
+          }
+        });
+        if(!term.energized){ term.energized=true; changed=true; }
+      });
+    });
+
+    // Energize coils: contator A1→A2 path
+    components.filter(c=>c.type==='contator').forEach(comp=>{
+      const a1=comp.terminals.find(t=>t.id==='A1');
+      const a2=comp.terminals.find(t=>t.id==='A2');
+      if(a1?.energized && a2?.energized){
+        if(comp.state!=='energized'){ comp.state='energized'; changed=true; addLog(`${comp.tag} energizado`,'on'); }
+      } else {
+        if(comp.state==='energized'){ comp.state='off'; changed=true; addLog(`${comp.tag} desligado`,'off'); }
+      }
+    });
+
+    // Timer coil check
+    components.filter(c=>c.type==='timer').forEach(comp=>{
+      const ca=comp.terminals.find(t=>t.id==='coilA1');
+      const cb=comp.terminals.find(t=>t.id==='coilA2');
+      const coilOn = ca?.energized && cb?.energized;
+      if(coilOn && comp.state!=='on'){
+        if(!comp._timerStart) comp._timerStart=Date.now();
+        const elapsed=(Date.now()-comp._timerStart)/1000;
+        const delay=comp.params?.delay||5;
+        comp.timerPct=Math.min(100,(elapsed/delay)*100);
+        comp.timerVal=Math.max(0,Math.round(delay-elapsed));
+        if(elapsed>=delay){ comp.state='on'; changed=true; addLog(`${comp.tag} temporizado — contato fechado`,'on'); }
+      } else if(!coilOn){
+        comp._timerStart=null; comp.state='off'; comp.timerPct=0; comp.timerVal=comp.params?.delay||5;
+      }
+    });
+
+    // Motors: check 3-phase terminals
+    components.filter(c=>c.type==='motor').forEach(comp=>{
+      const u=comp.terminals.find(t=>t.id==='U');
+      const v=comp.terminals.find(t=>t.id==='V');
+      const w=comp.terminals.find(t=>t.id==='W');
+      const wasOn=comp.state==='girando';
+      const nowOn=u?.energized||v?.energized;
+      if(nowOn&&!wasOn){ comp.state='girando'; changed=true; addLog(`${comp.tag} em marcha`,'on'); }
+      if(!nowOn&&wasOn){ comp.state='off'; changed=true; addLog(`${comp.tag} parou`,'off'); }
+    });
+
+    // Motor 2V
+    components.filter(c=>c.type==='motor2v').forEach(comp=>{
+      const u1=comp.terminals.find(t=>t.id==='U1');
+      const u2=comp.terminals.find(t=>t.id==='U2');
+      const was=comp.state;
+      const st=u2?.energized?'v2':u1?.energized?'v1':'off';
+      if(st!==was){ comp.state=st; changed=true; addLog(`${comp.tag}: ${st}`,'on'); }
+    });
+
+    // Lights/buzzer
+    ['lampVerde','lampVerm','lampAmar','buzzer'].forEach(type=>{
+      components.filter(c=>c.type===type).forEach(comp=>{
+        const inT=comp.terminals.find(t=>t.id==='in');
+        const was=comp.state;
+        const st=inT?.energized?'on':'off';
+        if(st!==was){ comp.state=st; changed=true; }
+      });
+    });
+
+    // VFD
+    components.filter(c=>c.type==='vfd').forEach(comp=>{
+      const r=comp.terminals.find(t=>t.id==='R');
+      const di1=comp.terminals.find(t=>t.id==='DI1');
+      const was=comp.state;
+      const st=r?.energized?'running':'off';
+      if(st!==was){ comp.state=st; changed=true;
+        if(st==='running'){ comp.params.hz=comp.params.maxHz||50; addLog(`${comp.tag} partida VFD`,'on'); }
+        else { comp.params.hz=0; addLog(`${comp.tag} parado`,'off'); }
+      }
+    });
+  }
+
+  // Apply energized state to contNA/NF based on their reference contator
+  components.filter(c=>c.type==='contNA'||c.type==='contNF').forEach(comp=>{
+    const refTag=comp.params?.ref;
+    if(refTag){
+      const ref=components.find(c=>c.tag===refTag&&c.type==='contator');
+      if(ref){
+        const isEn=ref.state==='energized';
+        comp.state=comp.type==='contNA'?(isEn?'on':'off'):(isEn?'off':'on');
+      }
+    }
+  });
+
+  // Update crane visualizer
+  updateCraneFromCircuit();
+
+  // Re-render all
+  components.forEach(c=>renderComponent(c));
+  renderAllWires();
+}
+
+function conducts(comp, inTermId, outTermId){
+  const st=comp.state;
+  switch(comp.type){
+    case 'fase': case 'neutro': return true;
+    case 'qg': case 'disj':
+      return st==='fechado'||st==='on';
+    case 'contator':
+      // Power contacts L1-T1, L2-T2, L3-T3
+      const pairsPow={L1:'T1',L2:'T2',L3:'T3',T1:'L1',T2:'L2',T3:'L3'};
+      if(pairsPow[inTermId]===outTermId) return st==='energized';
+      // Coil circuit
+      if((inTermId==='A1'&&outTermId==='A2')||(inTermId==='A2'&&outTermId==='A1')) return true;
+      return false;
+    case 'contNA': return st==='on';
+    case 'contNF': return st==='on'||st==='fechado';
+    case 'rele':
+      if((inTermId==='in'&&outTermId==='out')||(inTermId==='out'&&outTermId==='in'))
+        return st!=='sobrecarga';
+      return false;
+    case 'botNA': return st==='on';
+    case 'botNF': return st==='on'||st==='fechado';
+    case 'fcNA': return st==='on';
+    case 'fcNF': return st==='on'||st==='fechado';
+    case 'timer':
+      if((inTermId==='coilA1'&&outTermId==='coilA2')||(inTermId==='coilA2'&&outTermId==='coilA1')) return true;
+      if((inTermId==='out')||(outTermId==='out')) return st==='on';
+      return false;
+    case 'emg': return st==='on'||st==='fechado';
+    case 'lampVerde':case 'lampVerm':case 'lampAmar':case 'buzzer':
+      return (inTermId==='in'&&outTermId==='out')||(inTermId==='out'&&outTermId==='in');
+    case 'anem': return st==='on'; // NF — open when wind>12m/s (state='off')
+    case 'trava': return st!=='on'; // NF — open when locked
+    default: return false;
+  }
+}
+
+function getPairedTerminals(comp, inTermId){
+  switch(comp.type){
+    case 'fase': case 'neutro': return comp.terminals.map(t=>t.id).filter(id=>id!==inTermId);
+    case 'qg': case 'disj':
+      const qpairs={L1:'T1',L2:'T2',L3:'T3',T1:'L1',T2:'L2',T3:'L3',in:'out',out:'in'};
+      return qpairs[inTermId]?[qpairs[inTermId]]:[];
+    case 'contator':
+      const cpairs={L1:'T1',L2:'T2',L3:'T3',T1:'L1',T2:'L2',T3:'L3',A1:'A2',A2:'A1'};
+      return cpairs[inTermId]?[cpairs[inTermId]]:[];
+    case 'timer':
+      if(inTermId==='coilA1') return ['coilA2'];
+      if(inTermId==='coilA2') return ['coilA1'];
+      return ['out'];
+    case 'rele':
+      if(inTermId==='in') return ['out'];
+      if(inTermId==='out') return ['in'];
+      return [];
+    default:
+      // default: in<->out
+      if(inTermId==='in') return ['out'];
+      if(inTermId==='out') return ['in'];
+      return comp.terminals.map(t=>t.id).filter(id=>id!==inTermId);
+  }
+}
+
+// ============================================================
+// CRANE VISUALIZER UPDATE
+// ============================================================
+function updateCraneFromCircuit(){
+  // Find KMD/KME (or KMD/KME direction), KMS/KMB (hoist)
+  const kmd=components.find(c=>c.type==='contator'&&(c.tag==='KMD'||c.tag==='KM1D'||c.tag==='KPD'));
+  const kme=components.find(c=>c.type==='contator'&&(c.tag==='KME'||c.tag==='KM1E'||c.tag==='KPE'));
+  const kms=components.find(c=>c.type==='contator'&&(c.tag==='KMS'||c.tag==='KPS'));
+  const kmb=components.find(c=>c.type==='contator'&&(c.tag==='KMB'||c.tag==='KPB'));
+
+  const goDir = kmd?.state==='energized';
+  const goEsq = kme?.state==='energized';
+  const goSub  = kms?.state==='energized';
+  const goDes  = kmb?.state==='energized';
+
+  if(goDir && craneX<230) craneX+=2;
+  if(goEsq && craneX>30) craneX-=2;
+  if(goSub && craneY>10) craneY-=2;
+  if(goDes && craneY<100) craneY+=2;
+
+  updateCraneViz();
+
+  const tStatus=goDir?'→ DIREITA':goEsq?'← ESQUERDA':'PARADO';
+  const eStatus=goSub?'↑ SUBINDO':goDes?'↓ DESCENDO':'PARADO';
+  document.getElementById('craneStatusT').textContent='TRANS: '+tStatus;
+  document.getElementById('craneStatusE').textContent='ELEV: '+eStatus;
+}
+
+// ============================================================
+// BUILT-IN CIRCUITS
+// ============================================================
+getBuiltInCircuits = function(){
+  return [
+    { id:'bi1', name:'Partida Direta KM1', cat:'Partidas', desc:'Contator com auto-retenção, botoeiras liga/desliga e proteção FR' },
+    { id:'bi2', name:'Inversão de Giro', cat:'Partidas', desc:'KH+KA com intertravamento elétrico NF' },
+    { id:'bi3', name:'Estrela-Triângulo', cat:'Partidas', desc:'KM+KY+KD com temporizador 8s' },
+    { id:'bi4', name:'Ponte Rolante — Translação', cat:'Ponte Rolante', desc:'KMD/KME intertravamento + auto-retenção + fins de curso Dir/Esq' },
+    { id:'bi5', name:'Ponte Rolante — Elevação', cat:'Ponte Rolante', desc:'KMS/KMB + Jog descida + LS Alto/Baixo' },
+    { id:'bi6', name:'Ponte Rolante Completa', cat:'Ponte Rolante', desc:'QG + EMG + 2 motores + 4 fins de curso + sinalização' },
+    { id:'bi7', name:'Pórtico — Translação', cat:'Pórtico', desc:'KPD/KPE + anemômetro + trava mecânica + LS + lâmpadas + buzzer' },
+    { id:'bi8', name:'Pórtico — Elevação', cat:'Pórtico', desc:'KPS/KPB + temporizador anti-shock 3s + LS sobrecarga + Jog' },
+    { id:'bi9', name:'Pórtico Completo', cat:'Pórtico', desc:'Circuito industrial completo com QG+EMG+AN+STP+5 fins de curso' },
+    { id:'bi10', name:'Talha Simples', cat:'Talha', desc:'KMS/KMB intertravamento + auto-retenção + LS Alto/Baixo' },
+    { id:'bi11', name:'Talha 2 Velocidades', cat:'Talha', desc:'Motor Dahlander KV1 lento + KV2 rápido + temporizador anti-inversão 2s' },
+    { id:'bi12', name:'Talha Completa', cat:'Talha', desc:'Içamento 2V + Translação KTD/KTE + Jog + Trava NR-11 + 5 fins de curso' },
+    { id:'bi13', name:'Inversor WEG + Motor', cat:'Inversores VFD', desc:'CFW500 partida direta com botoeiras e referência de frequência' },
+    { id:'bi14', name:'Ponte Rolante com 2 VFDs', cat:'Inversores VFD', desc:'Translação e elevação com inversores separados' },
+  ];
+};
+
+loadCircuit = function(name, builtin){
+  if(!confirm(`Carregar circuito "${name}"? O canvas atual será substituído.`)) return;
+  components=[]; wires=[]; selectedComp=null; nextId=1;
+  compsLayer.innerHTML=''; wiresLayer.innerHTML='';
+
+  const circuit = BUILTIN_CIRCUITS[name];
+  if(circuit){
+    circuit.components.forEach(cd=>{
+      const c={...cd, terminals:getTerminals(cd.type,COMP_DEFS[cd.type]?.w||50,COMP_DEFS[cd.type]?.h||50)};
+      components.push(c);
+      if(c.id>=nextId) nextId=parseInt(c.id.substring(1))+1;
+      renderComponent(c);
+    });
+    circuit.wires.forEach(wd=>{
+      wires.push({...wd});
+      renderWire({...wd});
+      if(parseInt(wd.id.substring(1))>=nextId) nextId=parseInt(wd.id.substring(1))+1;
+    });
+    addLog(`Circuito "${name}" carregado (${circuit.components.length} componentes, ${circuit.wires.length} fios)`,'on');
+  } else {
+    // Generic placeholder
+    const c1=addComponent('fase',100,200);
+    const c2=addComponent('contator',250,200);
+    const c3=addComponent('motor',400,200);
+    addLog(`Circuito "${name}" — demo básico carregado`,'info');
+  }
+  showTab('props');
+};
+
+// Pre-built circuit data (simplified positions)
+const BUILTIN_CIRCUITS = {
+  'Partida Direta KM1': {
+    components:[
+      {id:'C1',type:'fase',x:80,y:200,tag:'L',state:'on',params:{}},
+      {id:'C2',type:'neutro',x:600,y:200,tag:'N',state:'on',params:{}},
+      {id:'C3',type:'disj',x:160,y:200,tag:'QF1',state:'fechado',params:{}},
+      {id:'C4',type:'rele',x:340,y:200,tag:'FR1',state:'ok',params:{}},
+      {id:'C5',type:'botNF',x:200,y:320,tag:'S0',state:'on',params:{}},
+      {id:'C6',type:'botNA',x:290,y:320,tag:'S1',state:'off',params:{}},
+      {id:'C7',type:'contNA',x:380,y:320,tag:'KM1-A',state:'off',params:{ref:'KM1'}},
+      {id:'C8',type:'contator',x:460,y:200,tag:'KM1',state:'off',params:{}},
+      {id:'C9',type:'motor',x:540,y:200,tag:'M1',state:'off',params:{}},
+      {id:'C10',type:'lampVerde',x:500,y:320,tag:'HL-V',state:'off',params:{}},
+    ],
+    wires:[
+      {id:'W1',fromComp:'C1',fromTerm:'out',toComp:'C3',toTerm:'in',energized:false},
+      {id:'W2',fromComp:'C3',fromTerm:'out',toComp:'C8',toTerm:'L1',energized:false},
+      {id:'W3',fromComp:'C8',fromTerm:'T1',toComp:'C4',toTerm:'in',energized:false},
+      {id:'W4',fromComp:'C4',fromTerm:'out',toComp:'C9',toTerm:'U',energized:false},
+      {id:'W5',fromComp:'C1',fromTerm:'out',toComp:'C5',toTerm:'in',energized:false},
+      {id:'W6',fromComp:'C5',fromTerm:'out',toComp:'C6',toTerm:'in',energized:false},
+      {id:'W7',fromComp:'C6',fromTerm:'out',toComp:'C7',toTerm:'in',energized:false},
+      {id:'W8',fromComp:'C7',fromTerm:'out',toComp:'C8',toTerm:'A1',energized:false},
+      {id:'W9',fromComp:'C8',fromTerm:'A2',toComp:'C2',toTerm:'in',energized:false},
+      {id:'W10',fromComp:'C8',fromTerm:'T3',toComp:'C10',toTerm:'in',energized:false},
+    ]
+  },
+  'Ponte Rolante — Translação': {
+    components:[
+      {id:'C1',type:'fase',x:60,y:180,tag:'L',state:'on',params:{}},
+      {id:'C2',type:'neutro',x:700,y:180,tag:'N',state:'on',params:{}},
+      {id:'C3',type:'disj',x:140,y:180,tag:'QF',state:'fechado',params:{}},
+      {id:'C4',type:'botNF',x:180,y:300,tag:'S0',state:'on',params:{}},
+      {id:'C5',type:'botNA',x:260,y:300,tag:'S-DIR',state:'off',params:{}},
+      {id:'C6',type:'contNF',x:350,y:300,tag:'KME-NF',state:'on',params:{ref:'KME'}},
+      {id:'C7',type:'fcNF',x:430,y:300,tag:'LS-DIR',state:'on',params:{}},
+      {id:'C8',type:'contNA',x:310,y:380,tag:'KMD-A',state:'off',params:{ref:'KMD'}},
+      {id:'C9',type:'contator',x:500,y:180,tag:'KMD',state:'off',params:{}},
+      {id:'C10',type:'botNA',x:260,y:460,tag:'S-ESQ',state:'off',params:{}},
+      {id:'C11',type:'contNF',x:350,y:460,tag:'KMD-NF',state:'on',params:{ref:'KMD'}},
+      {id:'C12',type:'fcNF',x:430,y:460,tag:'LS-ESQ',state:'on',params:{}},
+      {id:'C13',type:'contNA',x:310,y:540,tag:'KME-A',state:'off',params:{ref:'KME'}},
+      {id:'C14',type:'contator',x:580,y:300,tag:'KME',state:'off',params:{}},
+      {id:'C15',type:'motor',x:630,y:180,tag:'M-TRAN',state:'off',params:{}},
+      {id:'C16',type:'lampVerde',x:600,y:460,tag:'HL-V',state:'off',params:{}},
+      {id:'C17',type:'lampVerm',x:650,y:460,tag:'HL-R',state:'off',params:{}},
+    ],
+    wires:[]
+  }
+};
+</script>
+
+<script>
+// ============================================================
+// PARTE 4 — INVERSORES VFD (5 MARCAS + PARAMETRIZAÇÃO)
+// ============================================================
+
+const VFD_PARAMS = {
+  WEG: {
+    model: 'CFW500 / CFW11',
+    sections: [
+      { title: 'Motor', params: [
+        { code:'P0399', name:'Tensão nominal', val:'380', unit:'V' },
+        { code:'P0400', name:'Freq. nominal', val:'60', unit:'Hz' },
+        { code:'P0401', name:'Rotação nominal', val:'1750', unit:'rpm' },
+        { code:'P0402', name:'Corrente nominal', val:'10', unit:'A' },
+        { code:'P0403', name:'Fator de potência', val:'0.85', unit:'' },
+        { code:'P0404', name:'Potência nominal', val:'5.5', unit:'kW' },
+      ]},
+      { title: 'Velocidade', params: [
+        { code:'P0133', name:'Freq. mínima', val:'3', unit:'Hz' },
+        { code:'P0134', name:'Freq. máxima', val:'66', unit:'Hz' },
+        { code:'P0135', name:'Freq. de base', val:'60', unit:'Hz' },
+      ]},
+      { title: 'Rampas', params: [
+        { code:'P0100', name:'Tempo aceleração', val:'5', unit:'s' },
+        { code:'P0101', name:'Tempo desaceleração', val:'5', unit:'s' },
+        { code:'P0102', name:'Tipo de rampa', val:'0', unit:'' },
+      ]},
+      { title: 'Controle', params: [
+        { code:'P0202', name:'Modo controle', val:'0', unit:'' },
+        { code:'P0221', name:'Ref. velocidade 1', val:'0', unit:'' },
+        { code:'P0224', name:'Ref. velocidade 2', val:'0', unit:'' },
+      ]},
+      { title: 'Entradas Digitais', params: [
+        { code:'P0263', name:'DI1 — Função', val:'0', unit:'' },
+        { code:'P0264', name:'DI2 — Função', val:'1', unit:'' },
+        { code:'P0265', name:'DI3 — Função', val:'4', unit:'' },
+        { code:'P0266', name:'DI4 — Função', val:'5', unit:'' },
+      ]},
+      { title: 'Proteções', params: [
+        { code:'P0156', name:'Corrente sobrecarga', val:'100', unit:'%' },
+        { code:'P0157', name:'Tempo sobrecarga', val:'60', unit:'s' },
+      ]},
+    ]
+  },
+  ABB: {
+    model: 'ACS355 / ACS580',
+    sections: [
+      { title: 'Motor', params: [
+        { code:'9905', name:'Tensão nominal', val:'380', unit:'V' },
+        { code:'9906', name:'Corrente nominal', val:'10', unit:'A' },
+        { code:'9907', name:'Freq. nominal', val:'60', unit:'Hz' },
+        { code:'9908', name:'Veloc. nominal', val:'1750', unit:'rpm' },
+        { code:'9909', name:'Potência nominal', val:'5.5', unit:'kW' },
+      ]},
+      { title: 'Rampas', params: [
+        { code:'2202', name:'Tempo aceleração', val:'5', unit:'s' },
+        { code:'2203', name:'Tempo desaceleração', val:'5', unit:'s' },
+      ]},
+      { title: 'Controle', params: [
+        { code:'9904', name:'Modo controle', val:'1', unit:'' },
+        { code:'1001', name:'Fonte referência EXT1', val:'1', unit:'' },
+        { code:'1101', name:'Fonte partida', val:'1', unit:'' },
+        { code:'1601', name:'Tipo partida', val:'0', unit:'' },
+        { code:'1602', name:'Tipo parada', val:'0', unit:'' },
+      ]},
+      { title: 'Velocidade', params: [
+        { code:'1301', name:'Freq. mínima', val:'0', unit:'Hz' },
+        { code:'1302', name:'Freq. máxima', val:'60', unit:'Hz' },
+        { code:'1401', name:'Corrente máxima', val:'150', unit:'%' },
+      ]},
+    ]
+  },
+  Schneider: {
+    model: 'ATV320 / ATV630',
+    sections: [
+      { title: 'Motor', params: [
+        { code:'UnS', name:'Tensão nominal', val:'380', unit:'V' },
+        { code:'nCr', name:'Corrente nominal', val:'10', unit:'A' },
+        { code:'nSP', name:'Veloc. nominal', val:'1750', unit:'rpm' },
+        { code:'FrS', name:'Freq. nominal', val:'60', unit:'Hz' },
+      ]},
+      { title: 'Rampas', params: [
+        { code:'ACC', name:'Tempo aceleração', val:'3', unit:'s' },
+        { code:'dEC', name:'Tempo desaceleração', val:'3', unit:'s' },
+      ]},
+      { title: 'Controle', params: [
+        { code:'Ctt', name:'Tipo controle', val:'nrd', unit:'' },
+        { code:'CHCF', name:'Config canal cmd', val:'SEP', unit:'' },
+      ]},
+      { title: 'Entradas', params: [
+        { code:'LI1', name:'LI1 — Função', val:'FWD', unit:'' },
+        { code:'LI2', name:'LI2 — Função', val:'REV', unit:'' },
+        { code:'LI3', name:'LI3 — Função', val:'PS2', unit:'' },
+      ]},
+      { title: 'Proteções', params: [
+        { code:'CrL1', name:'Limite corrente', val:'100', unit:'%' },
+        { code:'CLI', name:'Corrente de pico', val:'150', unit:'%' },
+      ]},
+    ]
+  },
+  Siemens: {
+    model: 'SINAMICS G120',
+    sections: [
+      { title: 'Motor', params: [
+        { code:'P0304', name:'Tensão nominal', val:'380', unit:'V' },
+        { code:'P0305', name:'Corrente nominal', val:'10', unit:'A' },
+        { code:'P0307', name:'Potência nominal', val:'5.5', unit:'kW' },
+        { code:'P0310', name:'Freq. nominal', val:'60', unit:'Hz' },
+        { code:'P0311', name:'Veloc. nominal', val:'1750', unit:'rpm' },
+      ]},
+      { title: 'Rampas', params: [
+        { code:'P1120', name:'Tempo aceleração', val:'5', unit:'s' },
+        { code:'P1121', name:'Tempo desaceleração', val:'5', unit:'s' },
+      ]},
+      { title: 'Controle', params: [
+        { code:'P1300', name:'Modo controle', val:'0', unit:'' },
+        { code:'P0700', name:'Fonte de comando', val:'2', unit:'' },
+        { code:'P1000', name:'Fonte ref. frequência', val:'2', unit:'' },
+      ]},
+      { title: 'Entradas Digitais', params: [
+        { code:'P0701', name:'DI1 — Função', val:'1', unit:'' },
+        { code:'P0702', name:'DI2 — Função', val:'12', unit:'' },
+        { code:'P0703', name:'DI3 — Função', val:'9', unit:'' },
+      ]},
+      { title: 'Proteções', params: [
+        { code:'P0640', name:'Corrente sobrecarga', val:'150', unit:'%' },
+      ]},
+    ]
+  },
+  Yaskawa: {
+    model: 'V1000 / A1000',
+    sections: [
+      { title: 'Motor', params: [
+        { code:'E2-01', name:'Corrente nominal', val:'10', unit:'A' },
+        { code:'E2-02', name:'Escorregamento nominal', val:'3', unit:'%' },
+        { code:'E2-03', name:'Corrente a vazio', val:'4', unit:'A' },
+        { code:'E2-04', name:'Número de polos', val:'4', unit:'' },
+        { code:'E2-05', name:'Resistência estator', val:'0.5', unit:'Ω' },
+      ]},
+      { title: 'Rampas', params: [
+        { code:'C1-01', name:'Tempo aceleração', val:'5', unit:'s' },
+        { code:'C1-02', name:'Tempo desaceleração', val:'5', unit:'s' },
+      ]},
+      { title: 'Controle', params: [
+        { code:'A1-02', name:'Modo controle', val:'2', unit:'' },
+        { code:'b1-01', name:'Ref. frequência', val:'1', unit:'' },
+        { code:'b1-02', name:'Fonte de operação', val:'1', unit:'' },
+      ]},
+      { title: 'Entradas Digitais', params: [
+        { code:'H1-01', name:'DI1 — Função', val:'40', unit:'' },
+        { code:'H1-02', name:'DI2 — Função', val:'41', unit:'' },
+        { code:'H1-03', name:'DI3 — Função', val:'0', unit:'' },
+      ]},
+      { title: 'Proteções', params: [
+        { code:'L1-01', name:'Proteção motor', val:'1', unit:'' },
+        { code:'L1-02', name:'Constante térmica', val:'80', unit:'s' },
+      ]},
+    ]
+  }
+};
+
+// Store param values per VFD component
+const vfdValues = {}; // compId -> {code: value}
+
+function renderVFDPanel(){
+  const el=document.getElementById('vfdContent');
+  const comp = selectedComp && selectedComp.type==='vfd' ? selectedComp : null;
+  if(!comp){
+    el.innerHTML=`<div class="no-sel"><div style="font-size:32px;margin-bottom:8px;">🔁</div>Selecione um Inversor VFD<br>no canvas para configurar</div>`;
+    return;
+  }
+  if(!vfdValues[comp.id]) vfdValues[comp.id]={};
+  const brand = comp.params?.brand||'WEG';
+  const def = VFD_PARAMS[brand];
+  if(!def) return;
+
+  let html=`
+    <div style="margin-bottom:8px;">
+      <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:4px;">${comp.tag} — ${def.model}</div>
+      <div class="vfd-brand-tabs">
+        ${Object.keys(VFD_PARAMS).map(b=>`<div class="vfd-brand${b===brand?' active':''}" onclick="setVFDBrand('${b}')">${b}</div>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:10px;color:var(--text2)">Frequência atual</div>
+          <input class="param-input" type="number" min="0" max="120" value="${comp.params?.hz||0}"
+            style="width:100%;font-size:14px;font-weight:700;color:var(--accent)"
+            onchange="comp.params.hz=+this.value;refreshComp('${comp.id}')">
+          <span style="font-size:10px;color:var(--text2)">Hz — ${Math.round((comp.params?.hz||0)*60/2)} RPM</span>
+        </div>
+        <div style="padding-top:4px;">
+          <button class="btn green" style="width:100%;margin-bottom:4px" onclick="vfdStart('${comp.id}')">▶ Partir</button>
+          <button class="btn red" style="width:100%" onclick="vfdStop('${comp.id}')">■ Parar</button>
+        </div>
+      </div>
+    </div>`;
+
+  def.sections.forEach(sec=>{
+    html+=`<div class="vfd-section"><div class="vfd-section-title">${sec.title}</div>`;
+    sec.params.forEach(p=>{
+      const saved = vfdValues[comp.id][p.code];
+      const val = saved!==undefined ? saved : p.val;
+      html+=`<div class="param-row">
+        <span class="param-code">${p.code}</span>
+        <span class="param-name" title="${p.name}">${p.name}</span>
+        <input class="param-input" value="${val}" onchange="saveVFDParam('${comp.id}','${p.code}',this.value)">
+        <span class="param-unit">${p.unit}</span>
+      </div>`;
+    });
+    html+=`</div>`;
+  });
+
+  el.innerHTML=html;
+}
+
+function setVFDBrand(brand){
+  if(!selectedComp) return;
+  selectedComp.params.brand=brand;
+  refreshComp(selectedComp.id);
+  renderVFDPanel();
+  renderProps(selectedComp);
+}
+
+function saveVFDParam(compId, code, val){
+  if(!vfdValues[compId]) vfdValues[compId]={};
+  vfdValues[compId][code]=val;
+}
+
+function vfdStart(compId){
+  const comp=components.find(c=>c.id===compId);
+  if(!comp) return;
+  const maxHz=parseFloat(vfdValues[compId]?.['P0134']||vfdValues[compId]?.['1302']||'60');
+  comp.params.hz=maxHz||60;
+  comp.state='running';
+  refreshComp(compId);
+  renderVFDPanel();
+  addLog(`${comp.tag} partida — ${comp.params.hz}Hz`,'on');
+}
+
+function vfdStop(compId){
+  const comp=components.find(c=>c.id===compId);
+  if(!comp) return;
+  comp.params.hz=0;
+  comp.state='off';
+  refreshComp(compId);
+  renderVFDPanel();
+  addLog(`${comp.tag} parado`,'off');
+}
+
+// Override selectComponent to also render VFD panel
+const _origSelect = selectComponent;
+selectComponent = function(id){
+  _origSelect(id);
+  if(selectedComp?.type==='vfd'){
+    renderVFDPanel();
+    showTab('vfd');
+  }
+};
+</script>
+
+<script>
+// ============================================================
+// PARTE 5 — EXERCÍCIOS DIDÁTICOS GUIADOS
+// ============================================================
+
+const EXERCISES = [
+  {
+    id:1, title:'Circuito de Iluminação Básica', level:'Básico', pts:100, cat:'Fundamentos',
+    desc:'Monte um circuito simples: Fase → Botoeira NA → Lâmpada → Neutro. Ao pressionar a botoeira, a lâmpada acende.',
+    steps:[
+      {text:'Adicione uma Fase (L) no canvas', check:()=>components.some(c=>c.type==='fase')},
+      {text:'Adicione uma Botoeira NA (S1)', check:()=>components.some(c=>c.type==='botNA')},
+      {text:'Adicione uma Lâmpada Verde (HL)', check:()=>components.some(c=>['lampVerde','lampVerm','lampAmar'].includes(c.type))},
+      {text:'Adicione um Neutro (N)', check:()=>components.some(c=>c.type==='neutro')},
+      {text:'Conecte os fios e ligue a botoeira', check:()=>components.some(c=>['lampVerde','lampVerm','lampAmar'].includes(c.type)&&c.state==='on')},
+    ]
+  },
+  {
+    id:2, title:'Contato NA e NF — Diferença', level:'Básico', pts:120, cat:'Fundamentos',
+    desc:'Entenda a diferença entre contatos NA (normalmente aberto) e NF (normalmente fechado) em circuitos de comando.',
+    steps:[
+      {text:'Adicione um Contato NA ao canvas', check:()=>components.some(c=>c.type==='contNA')},
+      {text:'Adicione um Contato NF ao canvas', check:()=>components.some(c=>c.type==='contNF')},
+      {text:'Ligue cada contato a uma lâmpada diferente', check:()=>components.filter(c=>['lampVerde','lampVerm','lampAmar'].includes(c.type)).length>=2},
+      {text:'Observe qual lâmpada está acesa sem acionar nada', check:()=>components.some(c=>['lampVerde','lampVerm','lampAmar'].includes(c.type)&&c.state==='on')},
+    ]
+  },
+  {
+    id:3, title:'Partida Direta com Auto-Retenção', level:'Intermediário', pts:200, cat:'Partidas',
+    desc:'Monte o circuito clássico de partida direta: botoeira Liga (NA), botoeira Desliga (NF), contator KM1 com contato de auto-retenção em paralelo com S1.',
+    steps:[
+      {text:'Adicione Botoeira NF (S0 — Desliga)', check:()=>components.some(c=>c.type==='botNF')},
+      {text:'Adicione Botoeira NA (S1 — Liga)', check:()=>components.some(c=>c.type==='botNA')},
+      {text:'Adicione Contator KM1', check:()=>components.some(c=>c.type==='contator')},
+      {text:'Adicione Contato NA KM1-A (auto-retenção)', check:()=>components.some(c=>c.type==='contNA')},
+      {text:'Adicione Motor M1', check:()=>components.some(c=>c.type==='motor')},
+      {text:'Acione S1 e verifique motor girando', check:()=>components.some(c=>c.type==='motor'&&c.state==='girando')},
+    ]
+  },
+  {
+    id:4, title:'Inversão de Giro com Intertravamento', level:'Intermediário', pts:250, cat:'Partidas',
+    desc:'Monte circuito com dois contatores KH (horário) e KA (anti-horário) com intertravamento elétrico via contatos NF cruzados.',
+    steps:[
+      {text:'Adicione Contator KH (horário)', check:()=>components.some(c=>c.type==='contator'&&(c.tag==='KH'||c.tag==='KM1'))},
+      {text:'Adicione Contator KA (anti-horário)', check:()=>components.filter(c=>c.type==='contator').length>=2},
+      {text:'Adicione contato NF de KH no ramal de KA', check:()=>components.some(c=>c.type==='contNF')},
+      {text:'Adicione contato NF de KA no ramal de KH', check:()=>components.filter(c=>c.type==='contNF').length>=2},
+      {text:'Adicione Motor e teste os dois sentidos', check:()=>components.some(c=>c.type==='motor')},
+    ]
+  },
+  {
+    id:5, title:'Relé Térmico — Proteção de Sobrecarga', level:'Intermediário', pts:180, cat:'Proteções',
+    desc:'Monte circuito com relé térmico FR. Simule uma sobrecarga e observe como o contato NF do FR abre o circuito de comando.',
+    steps:[
+      {text:'Adicione Relé Térmico FR1', check:()=>components.some(c=>c.type==='rele')},
+      {text:'Insira FR no circuito de potência (série com motor)', check:()=>components.some(c=>c.type==='motor')},
+      {text:'Use contato NF do FR no comando', check:()=>components.some(c=>c.type==='rele')},
+      {text:'Simule sobrecarga (clique no FR → estado: sobrecarga)', check:()=>components.some(c=>c.type==='rele'&&c.state==='sobrecarga')},
+      {text:'Verifique que o motor parou por proteção', check:()=>!components.some(c=>c.type==='motor'&&c.state==='girando')},
+    ]
+  },
+  {
+    id:6, title:'Temporizador — Partida Estrela-Triângulo', level:'Avançado', pts:350, cat:'Partidas',
+    desc:'Monte partida estrela-triângulo com 3 contatores (KM principal, KY estrela, KD triângulo) e temporizador automático.',
+    steps:[
+      {text:'Adicione Contator KM (principal)', check:()=>components.some(c=>c.type==='contator')},
+      {text:'Adicione Contator KY (estrela)', check:()=>components.filter(c=>c.type==='contator').length>=2},
+      {text:'Adicione Contator KD (triângulo)', check:()=>components.filter(c=>c.type==='contator').length>=3},
+      {text:'Adicione Temporizador KT (8s)', check:()=>components.some(c=>c.type==='timer')},
+      {text:'Configure o temporizador para 8 segundos', check:()=>components.some(c=>c.type==='timer'&&(c.params?.delay||5)>=8)},
+      {text:'Adicione intertravamento NF entre KY e KD', check:()=>components.filter(c=>c.type==='contNF').length>=2},
+      {text:'Motor funcionando em triângulo (alta velocidade)', check:()=>components.some(c=>c.type==='motor'&&c.state==='girando')},
+    ]
+  },
+  {
+    id:7, title:'Circuito com Fim de Curso', level:'Intermediário', pts:200, cat:'Automação',
+    desc:'Monte circuito de translação com fins de curso NF nas extremidades para parar automaticamente o movimento.',
+    steps:[
+      {text:'Adicione Contator de translação KMD', check:()=>components.some(c=>c.type==='contator')},
+      {text:'Adicione Fim de Curso NF direita (LS-DIR)', check:()=>components.some(c=>c.type==='fcNF')},
+      {text:'Adicione Fim de Curso NF esquerda (LS-ESQ)', check:()=>components.filter(c=>c.type==='fcNF').length>=2},
+      {text:'Acione um fim de curso (clique → ON) e veja o motor parar', check:()=>components.some(c=>c.type==='fcNF'&&c.state==='on')},
+    ]
+  },
+  {
+    id:8, title:'Inversor WEG — Configuração Básica', level:'Avançado', pts:300, cat:'Inversores VFD',
+    desc:'Configure um inversor WEG CFW500. Defina parâmetros de motor, rampa de aceleração e entradas digitais.',
+    steps:[
+      {text:'Adicione um Inversor VFD ao canvas', check:()=>components.some(c=>c.type==='vfd')},
+      {text:'Selecione a marca WEG no painel VFD', check:()=>components.some(c=>c.type==='vfd'&&c.params?.brand==='WEG')},
+      {text:'Configure P0400 (freq. nominal) = 60Hz', check:()=>true},
+      {text:'Configure P0100 (tempo aceleração) = 5s', check:()=>true},
+      {text:'Inicie o inversor (botão Partir)', check:()=>components.some(c=>c.type==='vfd'&&c.state==='running')},
+    ]
+  },
+  {
+    id:9, title:'Ponte Rolante — Translação', level:'Avançado', pts:400, cat:'Pórticos',
+    desc:'Monte circuito completo de translação de ponte rolante com dois contatores (KMD e KME) com intertravamento e fins de curso.',
+    steps:[
+      {text:'Carregue o circuito "Ponte Rolante — Translação" da biblioteca', check:()=>components.some(c=>c.tag==='KMD')},
+      {text:'Verifique intertravamento NF entre KMD e KME', check:()=>components.some(c=>c.type==='contNF')},
+      {text:'Acione S-DIR e verifique KMD energizando', check:()=>components.some(c=>c.tag==='KMD'&&c.state==='energized')},
+      {text:'Veja a animação do trole movendo-se no visualizador', check:()=>craneX>140},
+    ]
+  },
+  {
+    id:10, title:'Desafio Final — Pórtico Completo', level:'Profissional', pts:600, cat:'Pórticos',
+    desc:'Monte do zero o circuito completo de um pórtico com translação, elevação, anemômetro, trava mecânica e todas as proteções.',
+    steps:[
+      {text:'Adicione QG (disjuntor geral)', check:()=>components.some(c=>c.type==='qg')},
+      {text:'Adicione EMG (emergência cogumelo NF)', check:()=>components.some(c=>c.type==='emg')},
+      {text:'Adicione Anemômetro AN (NF — corta >12m/s)', check:()=>components.some(c=>c.type==='anem')},
+      {text:'Adicione Trava Mecânica STP', check:()=>components.some(c=>c.type==='trava')},
+      {text:'Monte translação com KPD/KPE + intertravamento', check:()=>components.filter(c=>c.type==='contator').length>=2},
+      {text:'Monte elevação com KPS/KPB + fins de curso', check:()=>components.filter(c=>c.type==='contator').length>=4},
+      {text:'Adicione 4+ fins de curso NF', check:()=>components.filter(c=>c.type==='fcNF').length>=4},
+      {text:'Adicione sinalização (lâmpadas + buzzer)', check:()=>components.some(c=>c.type==='buzzer')},
+      {text:'Simule e verifique todos os motores funcionando', check:()=>components.filter(c=>['motor','motor2v'].includes(c.type)&&['girando','v1','v2'].includes(c.state)).length>=2},
+    ]
+  },
+];
+
+let exScores = {}; // id -> {done, score}
+
+renderExercises = function(){
+  const el=document.getElementById('exList');
+  let totalScore=0;
+  Object.values(exScores).forEach(e=>{ if(e.done) totalScore+=e.score; });
+  const maxScore=EXERCISES.reduce((s,e)=>s+e.pts,0);
+
+  document.getElementById('totalScore').textContent=totalScore;
+  document.getElementById('totalBar').style.width=(totalScore/maxScore*100).toFixed(1)+'%';
+
+  el.innerHTML='';
+  EXERCISES.forEach((ex,i)=>{
+    const done=exScores[ex.id]?.done;
+    const isActive=!done;
+    const div=document.createElement('div');
+    div.className='ex-item'+(done?' done':'');
+
+    const lvlClass={Básico:'badge-basic',Intermediário:'badge-inter',Avançado:'badge-adv',Profissional:'badge-prof'}[ex.level]||'badge-basic';
+    const lvlEmoji={Básico:'🟢',Intermediário:'🟡',Avançado:'🔴',Profissional:'🟣'}[ex.level]||'🟢';
+
+    // Check steps
+    const stepResults=ex.steps.map(s=>({...s,ok:s.check()}));
+    const doneSteps=stepResults.filter(s=>s.ok).length;
+    const pct=Math.round(doneSteps/ex.steps.length*100);
+    if(pct===100&&!done){ exScores[ex.id]={done:true,score:ex.pts}; addLog(`🏆 Exercício ${ex.id} concluído! +${ex.pts} pts`,'on'); }
+
+    div.innerHTML=`
+      <div class="ex-header">
+        <div class="ex-num">${ex.id}</div>
+        <div class="ex-title">${ex.title}</div>
+      </div>
+      <div class="ex-badges">
+        <span class="badge ${lvlClass}">${lvlEmoji} ${ex.level}</span>
+        <span class="badge" style="background:#1c2128;color:var(--text2)">${ex.cat}</span>
+      </div>
+      <div class="ex-desc">${ex.desc}</div>
+      <div class="ex-steps">
+        ${stepResults.map(s=>`
+          <div class="ex-step${s.ok?' step-done':''}">
+            <span class="step-icon">${s.ok?'✅':'⭕'}</span>
+            <span class="step-text">${s.text}</span>
+          </div>`).join('')}
+      </div>
+      <div class="ex-progress"><div class="ex-progress-bar" style="width:${pct}%"></div></div>
+      <div class="ex-footer">
+        <span class="pts-badge">⭐ ${ex.pts} pts</span>
+        <div style="display:flex;gap:4px">
+          ${done?'<span style="color:var(--green);font-size:11px">🏆 Concluído!</span>':''}
+          <button class="btn" style="padding:3px 8px;font-size:10px" onclick="loadCircuit('${ex.title}',true)">📋 Exemplo</button>
+        </div>
+      </div>`;
+    el.appendChild(div);
+  });
+};
+
+// Refresh exercises when simulation runs
+const _origRunSim=runSimulation;
+runSimulation=function(){
+  _origRunSim();
+  setTimeout(renderExercises,500);
+};
+</script>
+
+<script>
+// ============================================================
+// PARTE 6 — FINALIZAÇÃO: BOTÕES INTERATIVOS + BOTOEIRAS + INIT
+// ============================================================
+
+// Make pushbuttons interactive (click to toggle)
+const _origRenderComp = renderComponent;
+renderComponent = function(comp){
+  _origRenderComp(comp);
+  const g=document.getElementById(comp.id);
+  if(!g) return;
+
+  // Botoeiras — click para acionar (momentâneo)
+  if(comp.type==='botNA'||comp.type==='botNF'){
+    g.style.cursor='pointer';
+    g.ondblclick=e=>{
+      e.stopPropagation();
+      if(comp.type==='botNA'){
+        comp.state='on';
+        refreshComp(comp.id);
+        addLog(`${comp.tag} pressionado`,'on');
+        propagateElectricity();
+        setTimeout(()=>{ comp.state='off'; refreshComp(comp.id); propagateElectricity(); },500);
+      } else {
+        comp.state='off'; // NF abre
+        refreshComp(comp.id);
+        addLog(`${comp.tag} pressionado`,'warn');
+        propagateElectricity();
+        setTimeout(()=>{ comp.state='on'; refreshComp(comp.id); propagateElectricity(); },500);
+      }
+    };
+  }
+
+  // QG/Disj — click para abrir/fechar
+  if(comp.type==='qg'||comp.type==='disj'){
+    g.ondblclick=e=>{
+      e.stopPropagation();
+      comp.state=comp.state==='fechado'?'aberto':'fechado';
+      refreshComp(comp.id);
+      addLog(`${comp.tag}: ${comp.state}`,'info');
+      propagateElectricity();
+    };
+  }
+
+  // EMG — click para acionar/liberar
+  if(comp.type==='emg'){
+    g.ondblclick=e=>{
+      e.stopPropagation();
+      comp.state=comp.state==='on'?'off':'on';
+      refreshComp(comp.id);
+      addLog(`${comp.tag}: ${comp.state==='on'?'LIBERADO':'ACIONADO'}`,'warn');
+      propagateElectricity();
+    };
+  }
+
+  // Fins de curso — click para acionar
+  if(comp.type==='fcNA'||comp.type==='fcNF'){
+    g.ondblclick=e=>{
+      e.stopPropagation();
+      if(comp.type==='fcNA') comp.state=comp.state==='on'?'off':'on';
+      else comp.state=comp.state==='on'?'off':'on';
+      refreshComp(comp.id);
+      addLog(`${comp.tag}: ${comp.state}`,'info');
+      propagateElectricity();
+    };
+  }
+};
+
+// Tooltip: hint para o usuário
+document.getElementById('canvasWrap').addEventListener('mousemove',e=>{
+  // subtle cursor change when near terminals in wire mode
+  if(mode==='wire') svgEl.style.cursor='crosshair';
+});
+
+// ============================================================
+// KEYBOARD ACTIONS
+// ============================================================
+document.addEventListener('keydown',e=>{
+  if(e.ctrlKey&&e.key==='s'){ e.preventDefault(); openSaveModal(); }
+  if(e.ctrlKey&&e.key==='z'){ addLog('Ctrl+Z: desfazer não implementado ainda','warn'); }
+  if(e.key==='F5') { e.preventDefault(); runSimulation(); }
+});
+
+// ============================================================
+// CANVAS CLICK — deselect
+// ============================================================
+svgEl.addEventListener('click',e=>{
+  if(e.target===svgEl||e.target.id==='canvasGroup'||e.target.id==='wiresLayer'||e.target.id==='compsLayer'){
+    selectedComp=null;
+    renderProps(null);
+    document.querySelectorAll('.comp-group').forEach(g=>g.style.opacity='1');
+  }
+});
+
+// ============================================================
+// HINT — dica duplo clique
+// ============================================================
+const hint=document.querySelector('.canvas-hint');
+setTimeout(()=>{
+  hint.textContent='Duplo clique nos componentes para acionar • Arraste para mover • [W] para conectar fios';
+},3000);
+setTimeout(()=>{
+  hint.textContent='Scroll = zoom • Middle click = pan • M/W/Del = modos';
+},7000);
+
+// ============================================================
+// PERIODIC EXERCISE CHECK
+// ============================================================
+setInterval(()=>{
+  const exTab=document.getElementById('tab-ex');
+  if(exTab.classList.contains('active')) renderExercises();
+}, 2000);
+
+// ============================================================
+// INIT — carregar biblioteca padrão
+// ============================================================
+window.addEventListener('DOMContentLoaded',()=>{
+  // Mostrar hint do duplo clique
+  addLog('Dica: Arraste componentes da barra lateral para o canvas','info');
+  addLog('Dica: [W] entra em modo fio — clique em terminais (pontos) para conectar','info');
+  addLog('Dica: Duplo clique em botoeiras/disjuntores para acionar','info');
+  addLog('Carregar circuito: aba 📚 LIB → selecione → Carregar','info');
+
+  // Load default circuit
+  setTimeout(()=>{
+    loadCircuit('Partida Direta KM1', true);
+    runSimulation();
+  }, 500);
+});
+</script>
+</body>
+</html>
